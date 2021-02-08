@@ -208,27 +208,31 @@ function isPassByCopyRecord(val) {
   if (Object.getPrototypeOf(val) !== Object.prototype) {
     return false;
   }
-  const descEntries = Object.entries(Object.getOwnPropertyDescriptors(val));
-  if (descEntries.length === 0) {
+  const descs = Object.getOwnPropertyDescriptors(val);
+  const ownKeys = Reflect.ownKeys(descs);
+  if (ownKeys.length === 0) {
     // empty non-array objects are pass-by-remote, not pass-by-copy
+    // TODO Beware: Unmarked empty records will become pass-by-copy
+    // See https://github.com/Agoric/agoric-sdk/issues/2018
     return false;
   }
-  for (const [_key, desc] of descEntries) {
-    if (typeof desc.value === 'function') {
+  for (const ownKey of ownKeys) {
+    if (typeof ownKey === 'symbol') {
+      // No own symbol-named properties
       return false;
     }
-  }
-  for (const [key, desc] of descEntries) {
-    if (typeof key === 'symbol') {
-      throw new TypeError(
-        `Records must not have symbol-named properties: ${String(key)}`,
-      );
+    const desc = descs[ownKey];
+    if ('get' in desc) {
+      // No accessor properties
+      return false;
     }
-    if (!('value' in desc)) {
-      throw new TypeError(`Records must not contain accessors: ${key}`);
+    if (typeof desc.value === 'function') {
+      // No methods
+      return false;
     }
     if (!desc.enumerable) {
-      throw new TypeError(`Record fields must be enumerable: ${key}`);
+      // No non-enumerable properties
+      return false;
     }
   }
   return true;
