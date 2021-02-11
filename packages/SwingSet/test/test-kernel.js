@@ -919,7 +919,7 @@ test('promise reject', async t => {
     },
   ]);
 
-  syscallB.resolve([[pForB, true, capdata('args', [aliceForA])]]);
+  syscallB.resolve([[pForB, true, capdata('"args"', [aliceForA])]]);
   // this causes a notify message to be queued
   t.deepEqual(log, []); // no other dispatch calls
   t.deepEqual(kernel.dump().runQueue, [
@@ -934,7 +934,7 @@ test('promise reject', async t => {
   // the kernelPromiseID gets mapped back to the vat PromiseID
   t.deepEqual(log.shift(), [
     'notify',
-    oneResolution(pForA, true, capdata('args', ['o-50'])),
+    oneResolution(pForA, true, capdata('"args"', ['o-50'])),
   ]);
   t.deepEqual(log, []); // no other dispatch calls
   t.deepEqual(kernel.dump().runQueue, []);
