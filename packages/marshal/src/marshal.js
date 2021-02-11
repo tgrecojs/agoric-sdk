@@ -90,17 +90,23 @@ function pureCopy(val, already = new WeakMap()) {
     }
 
     case REMOTE_STYLE: {
-      throw TypeError(
-        `Input value ${passStyle} cannot be copied as it must be passed by reference`,
+      throw assert.fail(
+        d`Input value ${q(
+          passStyle,
+        )} cannot be copied as it must be passed by reference`,
+        TypeError,
       );
     }
 
     case 'promise': {
-      throw TypeError(`Promises cannot be copied`);
+      throw assert.fail(d`Promises cannot be copied`, TypeError);
     }
 
     default:
-      throw TypeError(`Input value ${passStyle} is not recognized as data`);
+      throw assert.fail(
+        d`Input value ${q(passStyle)} is not recognized as data`,
+        TypeError,
+      );
   }
 }
 harden(pureCopy);
@@ -140,8 +146,9 @@ function isPassByCopyError(val) {
   const { name } = val;
   const EC = getErrorConstructor(name);
   if (!EC || EC.prototype !== proto) {
-    throw TypeError(
-      `Errors must inherit from an error class .prototype ${val}`,
+    throw assert.fail(
+      d`Errors must inherit from an error class .prototype ${val}`,
+      TypeError,
     );
   }
 
@@ -222,17 +229,19 @@ function isPassByCopyRecord(val) {
       return false;
     }
     const desc = descs[ownKey];
-    if ('get' in desc) {
-      // No accessor properties
-      return false;
-    }
     if (typeof desc.value === 'function') {
       // No methods
       return false;
     }
+  }
+  for (const ownKey of ownKeys) {
+    assert.typeof(ownKey, 'string');
+    const desc = descs[ownKey];
+    if ('get' in desc) {
+      throw new TypeError(`Records must not contain accessors: ${ownKey}`);
+    }
     if (!desc.enumerable) {
-      // No non-enumerable properties
-      return false;
+      throw new TypeError(`Record fields must be enumerable: ${ownKey}`);
     }
   }
   return true;
