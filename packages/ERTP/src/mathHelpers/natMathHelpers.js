@@ -1,10 +1,10 @@
 // @ts-check
 
-import Nat from '@agoric/nat';
+import { Nat } from '@agoric/nat';
 
 import '../types';
 
-const identity = 0;
+const identity = 0n;
 
 /**
  * Fungible digital assets use the natMathHelpers to manage balances -
