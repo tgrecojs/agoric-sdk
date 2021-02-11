@@ -157,9 +157,9 @@
 
 /**
  * @callback CalcInterestFn
- * @param {number} oldDebtValue
- * @param {number} interestRate
- * @returns {number} interest
+ * @param {bigint} oldDebtValue
+ * @param {bigint} interestRate
+ * @returns {bigint} interest
  */
 
 /**
@@ -181,7 +181,7 @@
  *
  *   The AsyncIterable to notify when a period has occurred
  *
- * @property {number} interestRate
+ * @property {bigint} interestRate
  * @property {RelativeTime} interestPeriod
  *
  *  the period at which the outstanding debt increases by the interestRate
@@ -199,7 +199,7 @@
  * @property {InstanceHandle} autoswapInstance
  * @property {PriceAuthority} priceAuthority
  * @property {PeriodNotifier} periodNotifier
- * @property {number} interestRate
+ * @property {bigint} interestRate
  * @property {RelativeTime} interestPeriod
  * @property {ZCFSeat} lenderSeat
  */

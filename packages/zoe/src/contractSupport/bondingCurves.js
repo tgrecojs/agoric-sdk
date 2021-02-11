@@ -1,5 +1,5 @@
 import { assert, details } from '@agoric/assert';
-import Nat from '@agoric/nat';
+import { Nat } from '@agoric/nat';
 import { natSafeMath } from './safeMath';
 
 const { multiply, floorDivide } = natSafeMath;
@@ -117,7 +117,7 @@ export const calcLiqValueToMint = (
   assertDefined('inputValue', inputValue);
   assertDefined('inputReserve', inputReserve);
 
-  if (liqTokenSupply === 0) {
+  if (liqTokenSupply === 0n) {
     return inputValue;
   }
   return floorDivide(multiply(inputValue, liqTokenSupply), inputReserve);
@@ -144,7 +144,7 @@ export const calcSecondaryRequired = (
   assertDefined('centralIn', centralIn);
   assertDefined('centralPool', centralPool);
   assertDefined('secondaryReserve', secondaryPool);
-  if (centralPool === 0 || secondaryPool === 0) {
+  if (centralPool === 0n || secondaryPool === 0n) {
     return secondaryIn;
   }
 

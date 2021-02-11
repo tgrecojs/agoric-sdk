@@ -1,6 +1,6 @@
 import './types';
 import { assert } from '@agoric/assert';
-import Nat from '@agoric/nat';
+import { Nat } from '@agoric/nat';
 import { natSafeMath } from './safeMath';
 
 const { multiply, floorDivide } = natSafeMath;

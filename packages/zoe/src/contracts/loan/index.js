@@ -2,7 +2,7 @@
 import '../../../exported';
 
 import { assert } from '@agoric/assert';
-import Nat from '@agoric/nat';
+import { Nat } from '@agoric/nat';
 
 import { assertIssuerKeywords } from '../../contractSupport';
 import { makeLendInvitation } from './lend';
