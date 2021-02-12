@@ -9,6 +9,20 @@ import { isPromise } from '@agoric/promise-kit';
 
 import './types';
 
+const {
+  getPrototypeOf,
+  setPrototypeOf,
+  getOwnPropertyDescriptors,
+  defineProperties,
+  is,
+  isFrozen,
+  create,
+  fromEntries,
+  prototype: objectPrototype,
+} = Object;
+
+const { ownKeys } = Reflect;
+
 // TODO: Use just 'remote' when we're willing to make a breaking change.
 export const REMOTE_STYLE = 'presence';
 
@@ -64,6 +78,10 @@ function pureCopy(val, already = new WeakMap()) {
 
       // Make a deep copy on the new identity.
       // Object.entries(obj) takes a snapshot (even if a Proxy).
+      // Since we already know it is a copyRecord or copyArray, we
+      // know that Object.entries is safe enough. On a copyRecord it
+      // will represent all the own properties. On a copyArray it
+      // will represent all the own properties except for the length.
       Object.entries(obj).forEach(([prop, value]) => {
         copy[prop] = pureCopy(value, already);
       });
@@ -142,7 +160,7 @@ function isPassByCopyError(val) {
   if (!(val instanceof Error)) {
     return false;
   }
-  const proto = Object.getPrototypeOf(val);
+  const proto = getPrototypeOf(val);
   const { name } = val;
   const EC = getErrorConstructor(name);
   if (!EC || EC.prototype !== proto) {
@@ -157,18 +175,20 @@ function isPassByCopyError(val) {
     // Allow but ignore only extraneous own `stack` property.
     stack: _optStackDesc,
     ...restDescs
-  } = Object.getOwnPropertyDescriptors(val);
-  const restNames = Object.keys(restDescs);
-  if (restNames.length >= 1) {
-    throw new TypeError(`Unexpected own properties in error: ${restNames}`);
-  }
+  } = getOwnPropertyDescriptors(val);
+  const restKeys = ownKeys(restDescs);
+  assert(
+    restKeys.length === 0,
+    d`Unexpected own properties in error: ${q(String(restKeys))}`,
+    TypeError,
+  );
   if (mDesc) {
-    if (typeof mDesc.value !== 'string') {
-      throw new TypeError(`Malformed error object: ${val}`);
-    }
-    if (mDesc.enumerable) {
-      throw new TypeError(`An error's .message must not be enumerable`);
-    }
+    assert.typeof(mDesc.value, 'string', d`Malformed error object: ${val}`);
+    assert(
+      !mDesc.enumerable,
+      d`An error's .message must not be enumerable`,
+      TypeError,
+    );
   }
   return true;
 }
@@ -181,29 +201,37 @@ function isPassByCopyArray(val) {
   if (!Array.isArray(val)) {
     return false;
   }
-  if (Object.getPrototypeOf(val) !== Array.prototype) {
-    throw new TypeError(`Malformed array: ${val}`);
-  }
+  assert(
+    getPrototypeOf(val) === Array.prototype,
+    d`Malformed array: ${val}`,
+    TypeError,
+  );
   const len = val.length;
-  const descs = Object.getOwnPropertyDescriptors(val);
+  const descs = getOwnPropertyDescriptors(val);
   for (let i = 0; i < len; i += 1) {
     const desc = descs[i];
-    if (!desc) {
-      throw new TypeError(`Arrays must not contain holes: ${i}`);
-    }
-    if (!('value' in desc)) {
-      throw new TypeError(`Arrays must not contain accessors: ${i}`);
-    }
-    if (typeof desc.value === 'function') {
-      throw new TypeError(`Arrays must not contain methods: ${i}`);
-    }
-    if (!desc.enumerable) {
-      throw new TypeError(`Array elements must be enumerable: ${i}`);
-    }
+    assert(desc, d`Arrays must not contain holes: ${q(i)}`, TypeError);
+    assert(
+      'value' in desc,
+      d`Arrays must not contain accessors: ${q(i)}`,
+      TypeError,
+    );
+    assert(
+      typeof desc.value !== 'function',
+      d`Arrays must not contain methods: ${q(i)}`,
+      TypeError,
+    );
+    assert(
+      desc.enumerable,
+      d`Array elements must be enumerable: ${q(i)}`,
+      TypeError,
+    );
   }
-  if (Object.keys(descs).length !== len + 1) {
-    throw new TypeError(`Arrays must not have non-indexes: ${val}`);
-  }
+  assert(
+    ownKeys(descs).length === len + 1,
+    d`Arrays must not have non-indexes: ${val}`,
+    TypeError,
+  );
   return true;
 }
 
@@ -212,37 +240,39 @@ function isPassByCopyArray(val) {
  * @returns {boolean}
  */
 function isPassByCopyRecord(val) {
-  if (Object.getPrototypeOf(val) !== Object.prototype) {
+  if (getPrototypeOf(val) !== objectPrototype) {
     return false;
   }
-  const descs = Object.getOwnPropertyDescriptors(val);
-  const ownKeys = Reflect.ownKeys(descs);
-  if (ownKeys.length === 0) {
+  const descs = getOwnPropertyDescriptors(val);
+  const descKeys = ownKeys(descs);
+  if (descKeys.length === 0) {
     // empty non-array objects are pass-by-remote, not pass-by-copy
     // TODO Beware: Unmarked empty records will become pass-by-copy
     // See https://github.com/Agoric/agoric-sdk/issues/2018
     return false;
   }
-  for (const ownKey of ownKeys) {
-    if (typeof ownKey === 'symbol') {
-      // No own symbol-named properties
+  for (const descKey of descKeys) {
+    if (typeof descKey === 'symbol') {
       return false;
     }
-    const desc = descs[ownKey];
+    const desc = descs[descKey];
     if (typeof desc.value === 'function') {
-      // No methods
       return false;
     }
   }
-  for (const ownKey of ownKeys) {
-    assert.typeof(ownKey, 'string');
-    const desc = descs[ownKey];
-    if ('get' in desc) {
-      throw new TypeError(`Records must not contain accessors: ${ownKey}`);
-    }
-    if (!desc.enumerable) {
-      throw new TypeError(`Record fields must be enumerable: ${ownKey}`);
-    }
+  for (const descKey of descKeys) {
+    assert.typeof(descKey, 'string');
+    const desc = descs[descKey];
+    assert(
+      !('get' in desc),
+      d`Records must not contain accessors: ${q(descKey)}`,
+      TypeError,
+    );
+    assert(
+      desc.enumerable,
+      d`Record fields must be enumerable: ${q(descKey)}`,
+      TypeError,
+    );
   }
   return true;
 }
@@ -256,36 +286,27 @@ function isPassByCopyRecord(val) {
  */
 function assertCanBeRemotable(val) {
   // throws exception if cannot
-  if (typeof val !== 'object') {
-    throw new Error(`cannot serialize non-objects like ${val}`);
-  }
-  if (Array.isArray(val)) {
-    throw new Error(`Arrays cannot be pass-by-remote`);
-  }
-  if (val === null) {
-    throw new Error(`null cannot be pass-by-remote`);
-  }
+  assert.typeof(val, 'object', d`cannot serialize non-objects like ${val}`);
+  assert(!Array.isArray(val), d`Arrays cannot be pass-by-remote`);
+  assert(val !== null, d`null cannot be pass-by-remote`);
 
-  const names = Object.getOwnPropertyNames(val);
-  names.forEach(name => {
-    if (typeof val[name] !== 'function') {
-      throw new Error(
-        `cannot serialize objects with non-methods like the .${name} in ${val}`,
-      );
-      // return false;
-    }
+  const keys = ownKeys(val);
+  keys.forEach(key => {
+    assert.typeof(
+      val[key],
+      'function',
+      d`cannot serialize objects with non-methods like ${q(
+        String(key),
+      )} in ${val}`,
+    );
   });
-
-  // ok!
 }
 
 /**
  * @param {Remotable} val
  */
 export function mustPassByRemote(val) {
-  if (!Object.isFrozen(val)) {
-    throw new Error(`cannot serialize non-frozen objects like ${val}`);
-  }
+  assert(isFrozen(val), d`cannot serialize non-frozen objects like ${val}`);
 
   if (getInterfaceOf(val) === undefined) {
     // Not a registered Remotable, so check its contents.
@@ -293,8 +314,8 @@ export function mustPassByRemote(val) {
   }
 
   // It's not a registered Remotable, so enforce the prototype check.
-  const p = Object.getPrototypeOf(val);
-  if (p !== null && p !== Object.prototype) {
+  const p = getPrototypeOf(val);
+  if (p !== null && p !== objectPrototype) {
     mustPassByRemote(p);
   }
 }
@@ -313,7 +334,7 @@ export function mustPassByRemote(val) {
  * @returns {boolean}
  */
 export function sameValueZero(x, y) {
-  return x === y || Object.is(x, y);
+  return x === y || is(x, y);
 }
 
 /**
@@ -321,7 +342,7 @@ export function sameValueZero(x, y) {
  * 1: pass-by-remote: all properties (own and inherited) are methods,
  *    the object itself is of type object, not function
  * 2: pass-by-copy: all string-named own properties are data, not methods
- *    the object must inherit from Object.prototype or null
+ *    the object must inherit from objectPrototype or null
  * 3: the empty object is pass-by-remote, for identity comparison
  *
  * all objects must be frozen
@@ -361,19 +382,19 @@ export function passStyleOf(val) {
       }
       if (QCLASS in val) {
         // TODO Hilbert hotel
-        throw new Error(`property "${QCLASS}" reserved`);
+        throw assert.fail(d`property ${q(QCLASS)} reserved`);
       }
-      if (!Object.isFrozen(val)) {
-        throw new Error(
-          `Cannot pass non-frozen objects like ${val}. Use harden()`,
-        );
-      }
+      assert(
+        isFrozen(val),
+        d`Cannot pass non-frozen objects like ${val}. Use harden()`,
+      );
       if (isPromise(val)) {
         return 'promise';
       }
-      if (typeof val.then === 'function') {
-        throw new Error(`Cannot pass non-promise thenables`);
-      }
+      assert(
+        typeof val.then !== 'function',
+        d`Cannot pass non-promise thenables`,
+      );
       if (isPassByCopyError(val)) {
         return 'copyError';
       }
@@ -387,7 +408,7 @@ export function passStyleOf(val) {
       return REMOTE_STYLE;
     }
     case 'function': {
-      throw new Error(`Bare functions like ${val} are disabled for now`);
+      throw assert.fail(d`Bare functions like ${val} are disabled for now`);
     }
     case 'undefined':
     case 'string':
@@ -398,7 +419,7 @@ export function passStyleOf(val) {
       return typestr;
     }
     default: {
-      throw new TypeError(`Unrecognized typeof ${typestr}`);
+      throw assert.fail(d`Unrecognized typeof ${q(typestr)}`, TypeError);
     }
   }
 }
@@ -436,9 +457,7 @@ function makeReviverIbidTable(cyclePolicy) {
   return harden({
     get(allegedIndex) {
       const index = Nat(allegedIndex);
-      if (index >= ibids.length) {
-        throw new RangeError(`ibid out of range: ${index}`);
-      }
+      assert(index < ibids.length, d`ibid out of range: ${index}`, RangeError);
       const result = ibids[index];
       if (unfinishedIbids.has(result)) {
         switch (cyclePolicy) {
@@ -450,10 +469,13 @@ function makeReviverIbidTable(cyclePolicy) {
             break;
           }
           case 'forbidCycles': {
-            throw new TypeError(`Ibid cycle at ${index}`);
+            throw assert.fail(d`Ibid cycle at ${q(index)}`, TypeError);
           }
           default: {
-            throw new TypeError(`Unrecognized cycle policy: ${cyclePolicy}`);
+            throw assert.fail(
+              d`Unrecognized cycle policy: ${q(cyclePolicy)}`,
+              TypeError,
+            );
           }
         }
       }
@@ -528,8 +550,8 @@ export function makeMarshal(
     if (iface === undefined && passStyleOf(val) === REMOTE_STYLE) {
       // iface = `Alleged: remotable at slot ${slotIndex}`;
       if (
-        Object.getPrototypeOf(val) === Object.prototype &&
-        Object.getOwnPropertyNames(val).length === 0
+        getPrototypeOf(val) === objectPrototype &&
+        ownKeys(val).length === 0
       ) {
         // For now, skip the diagnostic if we have a pure empty object
       } else {
@@ -603,7 +625,7 @@ export function makeMarshal(
           if (Number.isNaN(val)) {
             return harden({ [QCLASS]: 'NaN' });
           }
-          if (Object.is(val, -0)) {
+          if (is(val, -0)) {
             return 0;
           }
           if (val === Infinity) {
@@ -648,10 +670,8 @@ export function makeMarshal(
               // Currently copyRecord allows only string keys so this will
               // work. If we allow sortable symbol keys, this will need to
               // become more interesting.
-              const names = Reflect.ownKeys(val).sort();
-              return Object.fromEntries(
-                names.map(name => [name, encode(val[name])]),
-              );
+              const names = ownKeys(val).sort();
+              return fromEntries(names.map(name => [name, encode(val[name])]));
             }
             case 'copyArray': {
               return val.map(encode);
@@ -690,7 +710,10 @@ export function makeMarshal(
               return serializeSlot(val, slots, slotMap);
             }
             default: {
-              throw new TypeError(`unrecognized passStyle ${passStyle}`);
+              throw assert.fail(
+                d`unrecognized passStyle ${q(passStyle)}`,
+                TypeError,
+              );
             }
           }
         }
@@ -749,9 +772,11 @@ export function makeMarshal(
       }
       if (QCLASS in rawTree) {
         const qclass = rawTree[QCLASS];
-        if (typeof qclass !== 'string') {
-          throw new TypeError(`invalid qclass typeof ${typeof qclass}`);
-        }
+        assert.typeof(
+          qclass,
+          'string',
+          d`invalid qclass typeof ${q(typeof qclass)}`,
+        );
         switch (qclass) {
           // Encoding of primitives not handled by JSON
           case 'undefined': {
@@ -767,11 +792,11 @@ export function makeMarshal(
             return -Infinity;
           }
           case 'bigint': {
-            if (typeof rawTree.digits !== 'string') {
-              throw new TypeError(
-                `invalid digits typeof ${typeof rawTree.digits}`,
-              );
-            }
+            assert.typeof(
+              rawTree.digits,
+              'string',
+              d`invalid digits typeof ${q(typeof rawTree.digits)}`,
+            );
             /* eslint-disable-next-line no-undef */
             return BigInt(rawTree.digits);
           }
@@ -784,16 +809,16 @@ export function makeMarshal(
           }
 
           case 'error': {
-            if (typeof rawTree.name !== 'string') {
-              throw new TypeError(
-                `invalid error name typeof ${typeof rawTree.name}`,
-              );
-            }
-            if (typeof rawTree.message !== 'string') {
-              throw new TypeError(
-                `invalid error message typeof ${typeof rawTree.message}`,
-              );
-            }
+            assert.typeof(
+              rawTree.name,
+              'string',
+              d`invalid error name typeof ${q(typeof rawTree.name)}`,
+            );
+            assert.typeof(
+              rawTree.message,
+              'string',
+              d`invalid error message typeof ${q(typeof rawTree.message)}`,
+            );
             const EC = getErrorConstructor(`${rawTree.name}`) || Error;
             const error = harden(new EC(`${rawTree.message}`));
             ibidTable.register(error);
@@ -811,7 +836,10 @@ export function makeMarshal(
 
           default: {
             // TODO reverse Hilbert hotel
-            throw new TypeError(`unrecognized ${QCLASS} ${qclass}`);
+            throw assert.fail(
+              d`unrecognized ${q(QCLASS)} ${q(qclass)}`,
+              TypeError,
+            );
           }
         }
       } else if (Array.isArray(rawTree)) {
@@ -823,8 +851,9 @@ export function makeMarshal(
         return ibidTable.finish(result);
       } else {
         const result = ibidTable.start({});
-        const names = Object.getOwnPropertyNames(rawTree);
+        const names = ownKeys(rawTree);
         for (const name of names) {
+          assert.typeof(name, 'string');
           result[name] = fullRevive(rawTree[name]);
         }
         return ibidTable.finish(result);
@@ -837,14 +866,15 @@ export function makeMarshal(
    * @type {Unserialize<Slot>}
    */
   function unserialize(data, cyclePolicy = 'forbidCycles') {
-    if (data.body !== `${data.body}`) {
-      throw new Error(
-        `unserialize() given non-capdata (.body is ${data.body}, not string)`,
-      );
-    }
-    if (!Array.isArray(data.slots)) {
-      throw new Error(`unserialize() given non-capdata (.slots are not Array)`);
-    }
+    assert.typeof(
+      data.body,
+      'string',
+      d`unserialize() given non-capdata (.body is ${data.body}, not string)`,
+    );
+    assert(
+      Array.isArray(data.slots),
+      d`unserialize() given non-capdata (.slots are not Array)`,
+    );
     const rawTree = harden(JSON.parse(data.body));
     const fullRevive = makeFullRevive(data.slots, cyclePolicy);
     return harden(fullRevive(rawTree));
@@ -899,21 +929,22 @@ function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
   assertCanBeRemotable(remotable);
 
   // Ensure that the remotable isn't already registered.
-  if (remotableToInterface.has(remotable)) {
-    throw Error(`Remotable ${remotable} is already mapped to an interface`);
-  }
+  assert(
+    !remotableToInterface.has(remotable),
+    d`Remotable ${remotable} is already mapped to an interface`,
+  );
 
   // A prototype for debuggability.
-  const oldRemotableProto = harden(Object.getPrototypeOf(remotable));
+  const oldRemotableProto = harden(getPrototypeOf(remotable));
 
   // Fail fast: create a fresh empty object with the old
   // prototype in order to check it against our rules.
-  mustPassByRemote(harden(Object.create(oldRemotableProto)));
+  mustPassByRemote(harden(create(oldRemotableProto)));
 
   // Assign the arrow function to a variable to set its .name.
   const toString = () => `[${allegedName}]`;
   const remotableProto = harden(
-    Object.create(oldRemotableProto, {
+    create(oldRemotableProto, {
       toString: {
         value: toString,
       },
@@ -930,10 +961,10 @@ function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
     /** @type {PropertyDescriptorMap} */
     const newProps = {};
     propEntries.forEach(([prop, value]) => (newProps[prop] = { value }));
-    Object.defineProperties(target, newProps);
+    defineProperties(target, newProps);
 
     // Set the prototype for debuggability.
-    Object.setPrototypeOf(target, remotableProto);
+    setPrototypeOf(target, remotableProto);
     harden(remotableProto);
 
     harden(target);
@@ -942,7 +973,7 @@ function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
   };
 
   // Fail fast: check a fresh remotable to see if our rules fit.
-  const throwawayRemotable = Object.create(oldRemotableProto);
+  const throwawayRemotable = create(oldRemotableProto);
   mutateHardenAndCheck(throwawayRemotable);
 
   // Actually finish the new remotable.
