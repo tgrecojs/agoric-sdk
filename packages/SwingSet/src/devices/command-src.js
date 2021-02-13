@@ -1,4 +1,4 @@
-import Nat from '@agoric/nat';
+import { natNum } from '../natNum';
 
 export function buildRootDeviceNode(tools) {
   const { SO, getDeviceState, setDeviceState, endowments } = tools;
@@ -17,7 +17,7 @@ export function buildRootDeviceNode(tools) {
     }
     try {
       const body = JSON.parse(`${bodyString}`);
-      SO(inboundHandler).inbound(Nat(count), body);
+      SO(inboundHandler).inbound(natNum(count), body);
     } catch (e) {
       console.error(`error during inboundCallback:`, e);
       throw new Error(`error during inboundCallback: ${e}`);

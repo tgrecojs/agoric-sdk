@@ -47,7 +47,7 @@ test('vattp', async t => {
     'ch.receive msg1',
     'ch.receive msg2',
   ]);
-  t.deepEqual(s.exportToData(), { remote1: { outbox: [], inboundAck: 2 } });
+  t.deepEqual(s.exportToData(), { remote1: { outbox: [], inboundAck: 2n } });
 
   t.is(
     mb.deliverInbound(
@@ -61,7 +61,7 @@ test('vattp', async t => {
     false,
   );
   await c.run();
-  t.deepEqual(s.exportToData(), { remote1: { outbox: [], inboundAck: 2 } });
+  t.deepEqual(s.exportToData(), { remote1: { outbox: [], inboundAck: 2n } });
 });
 
 test('vattp 2', async t => {
@@ -89,18 +89,18 @@ test('vattp 2', async t => {
   const c = await makeSwingsetController(hostStorage, deviceEndowments);
   await c.run();
   t.deepEqual(s.exportToData(), {
-    remote1: { outbox: [[1, 'out1']], inboundAck: 0 },
+    remote1: { outbox: [[1n, 'out1']], inboundAck: 0n },
   });
 
   t.is(mb.deliverInbound('remote1', [], 1), true);
   await c.run();
   t.deepEqual(c.dump().log, []);
-  t.deepEqual(s.exportToData(), { remote1: { outbox: [], inboundAck: 0 } });
+  t.deepEqual(s.exportToData(), { remote1: { outbox: [], inboundAck: 0n } });
 
   t.is(mb.deliverInbound('remote1', [[1, 'msg1']], 1), true);
   await c.run();
   t.deepEqual(c.dump().log, ['ch.receive msg1']);
-  t.deepEqual(s.exportToData(), { remote1: { outbox: [], inboundAck: 1 } });
+  t.deepEqual(s.exportToData(), { remote1: { outbox: [], inboundAck: 1n } });
 
   t.is(mb.deliverInbound('remote1', [[1, 'msg1']], 1), false);
 
@@ -117,5 +117,5 @@ test('vattp 2', async t => {
   );
   await c.run();
   t.deepEqual(c.dump().log, ['ch.receive msg1', 'ch.receive msg2']);
-  t.deepEqual(s.exportToData(), { remote1: { outbox: [], inboundAck: 2 } });
+  t.deepEqual(s.exportToData(), { remote1: { outbox: [], inboundAck: 2n } });
 });

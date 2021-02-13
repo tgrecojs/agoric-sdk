@@ -2,9 +2,10 @@ import { assert } from '@agoric/assert';
 import { assertKnownOptions } from '../assertOptions';
 import { makeVatSlot } from '../parseVatSlots';
 import { insistCapData } from '../capdata';
+import { ZERO } from '../natNum';
 
 export function makeVatRootObjectSlot() {
-  return makeVatSlot('object', true, 0);
+  return makeVatSlot('object', true, ZERO);
 }
 
 export function makeVatLoader(stuff) {

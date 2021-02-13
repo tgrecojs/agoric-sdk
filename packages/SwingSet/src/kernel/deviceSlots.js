@@ -2,6 +2,7 @@ import { Remotable, mustPassByPresence, makeMarshal } from '@agoric/marshal';
 import { assert, details } from '@agoric/assert';
 import { insistVatType, makeVatSlot, parseVatSlot } from '../parseVatSlots';
 import { insistCapData } from '../capdata';
+import { ZERO } from '../natNum';
 
 // 'makeDeviceSlots' is a subset of makeLiveSlots, for device code
 
@@ -170,7 +171,7 @@ export function makeDeviceSlots(
   });
   mustPassByPresence(rootObject);
 
-  const rootSlot = makeVatSlot('device', true, 0);
+  const rootSlot = makeVatSlot('device', true, ZERO);
   valToSlot.set(rootObject, rootSlot);
   slotToVal.set(rootSlot, rootObject);
 

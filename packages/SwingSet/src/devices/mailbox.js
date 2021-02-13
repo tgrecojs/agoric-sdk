@@ -64,7 +64,7 @@
 
 */
 
-import Nat from '@agoric/nat';
+import { natNum, ZERO } from '../natNum';
 
 // This Map-based mailboxState object is a good starting point, but we may
 // replace it with one that tracks which parts of the state have been
@@ -73,7 +73,7 @@ import Nat from '@agoric/nat';
 export function importMailbox(data, inout = {}) {
   const outbox = new Map();
   data.outbox.forEach(m => {
-    outbox.set(Nat(m[0]), m[1]);
+    outbox.set(natNum(m[0]), m[1]);
   });
   inout.ack = data.ack;
   inout.outbox = outbox;
@@ -85,7 +85,7 @@ export function exportMailbox(inout) {
   inout.outbox.forEach((body, msgnum) => {
     messages.push([msgnum, body]);
   });
-  messages.sort((a, b) => a[0] - b[0]);
+  messages.sort((a, b) => Number(a[0] - b[0]));
   return {
     ack: inout.ack,
     outbox: messages,
@@ -97,7 +97,7 @@ export function buildMailboxStateMap(state = harden(new Map())) {
     if (!state.has(peer)) {
       const inout = {
         outbox: harden(new Map()),
-        ack: 0,
+        ack: ZERO,
       };
       state.set(peer, inout);
     }
@@ -105,16 +105,16 @@ export function buildMailboxStateMap(state = harden(new Map())) {
   }
 
   function add(peer, msgnum, body) {
-    getOrCreatePeer(`${peer}`).outbox.set(Nat(msgnum), `${body}`);
+    getOrCreatePeer(`${peer}`).outbox.set(natNum(msgnum), `${body}`);
   }
 
   function remove(peer, msgnum) {
     const messages = getOrCreatePeer(`${peer}`).outbox;
-    messages.delete(Nat(msgnum));
+    messages.delete(natNum(msgnum));
   }
 
   function setAcknum(peer, msgnum) {
-    getOrCreatePeer(`${peer}`).ack = Nat(msgnum);
+    getOrCreatePeer(`${peer}`).ack = natNum(msgnum);
   }
 
   function exportToData() {
@@ -166,15 +166,15 @@ export function buildMailbox(state) {
   }
 
   function add(peer, msgnum, body) {
-    state.add(`${peer}`, Nat(msgnum), `${body}`);
+    state.add(`${peer}`, natNum(msgnum), `${body}`);
   }
 
   function remove(peer, msgnum) {
-    state.remove(`${peer}`, Nat(msgnum));
+    state.remove(`${peer}`, natNum(msgnum));
   }
 
   function setAcknum(peer, msgnum) {
-    state.setAcknum(`${peer}`, Nat(msgnum));
+    state.setAcknum(`${peer}`, natNum(msgnum));
   }
 
   // deliverInbound is made available to the host; it is used for inbound

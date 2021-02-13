@@ -22,8 +22,8 @@
  * expose only capabilities that don't reveal them.
  */
 
-import Nat from '@agoric/nat';
 import { assert, details } from '@agoric/assert';
+import { Nat } from '@agoric/nat';
 
 // Since we use harden when saving the state, we need to copy the arrays so they
 // will continue to be mutable. each record inside handlers is immutable, so we
@@ -103,7 +103,7 @@ function makeTimerMap(state = undefined) {
       typeof repeater === 'number' ? { handler, index: repeater } : { handler };
     const { handlers: records } = eventsFor(time);
     records.push(handlerRecord);
-    schedule.sort((a, b) => a.time - b.time);
+    schedule.sort((a, b) => Number(a.time - b.time));
     return time;
   }
 
@@ -257,9 +257,10 @@ export function buildRootDeviceNode(tools) {
   // point will be reached at consistent intervals.
   return harden({
     setWakeup(delaySecs, handler) {
-      deadlines.add(lastPolled + Nat(delaySecs), handler);
+      Nat(delaySecs);
+      deadlines.add(lastPolled + delaySecs, handler);
       saveState();
-      return lastPolled + Nat(delaySecs);
+      return lastPolled + delaySecs;
     },
     removeWakeup(handler) {
       const times = deadlines.remove(handler);
@@ -275,9 +276,11 @@ export function buildRootDeviceNode(tools) {
     // the authority they represent as capabilities.
     makeRepeater(startTime, interval) {
       const index = nextRepeater;
+      Nat(startTime);
+      Nat(interval);
       repeaters.push({
-        startTime: Nat(startTime),
-        interval: Nat(interval),
+        startTime,
+        interval,
       });
       nextRepeater += 1;
       saveState();

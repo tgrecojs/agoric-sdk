@@ -1,9 +1,9 @@
-import Nat from '@agoric/nat';
 import { assert, details } from '@agoric/assert';
 import { makeVatSlot, insistVatType } from '../../parseVatSlots';
+import { natNum } from '../../natNum';
 
 function makeRemoteID(index) {
-  return `remote${Nat(index)}`;
+  return `remote${natNum(index)}`;
 }
 
 export function insistRemoteID(remoteID) {

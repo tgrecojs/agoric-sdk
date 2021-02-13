@@ -1,4 +1,4 @@
-import Nat from '@agoric/nat';
+import { natNum } from '../natNum';
 
 export function buildRootDeviceNode(tools) {
   const { SO, getDeviceState, setDeviceState, endowments } = tools;
@@ -15,7 +15,7 @@ export function buildRootDeviceNode(tools) {
         `mailbox.inboundCallback(${peer}) called before handler was registered`,
       );
     }
-    const ack = Nat(hAck);
+    const ack = natNum(hAck);
     let didSomething = false;
 
     let latestMsg = 0;
@@ -25,7 +25,7 @@ export function buildRootDeviceNode(tools) {
     const newMessages = [];
     hMessages.forEach(m => {
       const [hNum, hMsg] = m;
-      const num = Nat(hNum);
+      const num = natNum(hNum);
       if (num > latestMsg) {
         newMessages.push([num, `${hMsg}`]);
         latestMsg = num;
@@ -88,7 +88,7 @@ export function buildRootDeviceNode(tools) {
 
     add(peer, msgnum, body) {
       try {
-        endowments.add(`${peer}`, Nat(msgnum), `${body}`);
+        endowments.add(`${peer}`, natNum(msgnum), `${body}`);
       } catch (e) {
         throw new Error(`error in add: ${e}`);
       }
@@ -96,7 +96,7 @@ export function buildRootDeviceNode(tools) {
 
     remove(peer, msgnum) {
       try {
-        endowments.remove(`${peer}`, Nat(msgnum));
+        endowments.remove(`${peer}`, natNum(msgnum));
       } catch (e) {
         throw new Error(`error in remove: ${e}`);
       }
@@ -104,7 +104,7 @@ export function buildRootDeviceNode(tools) {
 
     ackInbound(peer, msgnum) {
       try {
-        endowments.setAcknum(`${peer}`, Nat(msgnum));
+        endowments.setAcknum(`${peer}`, natNum(msgnum));
       } catch (e) {
         throw new Error(`error in ackInbound: ${e}`);
       }

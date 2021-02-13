@@ -12,6 +12,7 @@ import { isPromise } from '@agoric/promise-kit';
 import { insistVatType, makeVatSlot, parseVatSlot } from '../parseVatSlots';
 import { insistCapData } from '../capdata';
 import { makeVirtualObjectManager } from './virtualObjectManager';
+import { ZERO } from '../natNum';
 
 const DEFAULT_VIRTUAL_OBJECT_CACHE_SIZE = 3; // XXX ridiculously small value to force churn for testing
 
@@ -604,7 +605,7 @@ function build(syscall, forVatID, cacheSize, vatPowers, vatParameters) {
     );
     mustPassByPresence(rootObject);
 
-    const rootSlot = makeVatSlot('object', true, 0);
+    const rootSlot = makeVatSlot('object', true, ZERO);
     valToSlot.set(rootObject, rootSlot);
     slotToVal.set(rootSlot, rootObject);
   }

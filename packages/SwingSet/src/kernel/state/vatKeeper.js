@@ -2,12 +2,12 @@
  * Kernel's keeper of persistent state for a vat.
  */
 
-import Nat from '@agoric/nat';
 import { assert, details } from '@agoric/assert';
 import { parseKernelSlot } from '../parseKernelSlots';
 import { makeVatSlot, parseVatSlot } from '../../parseVatSlots';
 import { insistVatID } from '../id';
 import { kdebug } from '../kdebug';
+import { fromStr, natNum, toStr, increment, JSONstringify } from '../../natNum';
 
 // makeVatKeeper is a pure function: all state is kept in the argument object
 
@@ -25,10 +25,10 @@ const FIRST_TRANSCRIPT_ID = 0;
  * TODO: consider making this part of makeVatKeeper
  */
 export function initializeVatState(storage, vatID) {
-  storage.set(`${vatID}.o.nextID`, `${FIRST_OBJECT_ID}`);
-  storage.set(`${vatID}.p.nextID`, `${FIRST_PROMISE_ID}`);
-  storage.set(`${vatID}.d.nextID`, `${FIRST_DEVICE_ID}`);
-  storage.set(`${vatID}.t.nextID`, `${FIRST_TRANSCRIPT_ID}`);
+  storage.set(`${vatID}.o.nextID`, toStr(FIRST_OBJECT_ID));
+  storage.set(`${vatID}.p.nextID`, toStr(FIRST_PROMISE_ID));
+  storage.set(`${vatID}.d.nextID`, toStr(FIRST_DEVICE_ID));
+  storage.set(`${vatID}.t.nextID`, toStr(FIRST_TRANSCRIPT_ID));
 }
 
 /**
@@ -74,6 +74,12 @@ export function makeVatKeeper(
     const source = JSON.parse(storage.get(`${vatID}.source`));
     const options = JSON.parse(storage.get(`${vatID}.options`));
     return harden({ source, options });
+  }
+
+  function advance(key) {
+    const id = fromStr(storage.get(key));
+    storage.set(key, toStr(increment(id)));
+    return id;
   }
 
   /**
@@ -147,14 +153,11 @@ export function makeVatKeeper(
 
       let id;
       if (type === 'object') {
-        id = Nat(Number(storage.get(`${vatID}.o.nextID`)));
-        storage.set(`${vatID}.o.nextID`, `${id + 1}`);
+        id = advance(`${vatID}.o.nextID`);
       } else if (type === 'device') {
-        id = Nat(Number(storage.get(`${vatID}.d.nextID`)));
-        storage.set(`${vatID}.d.nextID`, `${id + 1}`);
+        id = advance(`${vatID}.d.nextID`);
       } else if (type === 'promise') {
-        id = Nat(Number(storage.get(`${vatID}.p.nextID`)));
-        storage.set(`${vatID}.p.nextID`, `${id + 1}`);
+        id = advance(`${vatID}.p.nextID`);
       } else {
         throw new Error(`unknown type ${type}`);
       }
@@ -240,26 +243,28 @@ export function makeVatKeeper(
    * @param {string} msg  The message to append.
    */
   function addToTranscript(msg) {
-    const id = Nat(Number(storage.get(`${vatID}.t.nextID`)));
-    storage.set(`${vatID}.t.nextID`, `${id + 1}`);
-    storage.set(`${vatID}.t.${id}`, JSON.stringify(msg));
+    const id = advance(`${vatID}.t.nextID`);
+    storage.set(`${vatID}.t.${id}`, JSONstringify(msg));
   }
 
   function vatStats() {
-    function getStringAsNat(ostr) {
-      return Nat(Number(storage.get(ostr)));
+    function compareToFirst(key, first) {
+      const id = fromStr(storage.get(key));
+      return id - natNum(first);
     }
 
-    const objectCount = getStringAsNat(`${vatID}.o.nextID`) - FIRST_OBJECT_ID;
-    const promiseCount = getStringAsNat(`${vatID}.p.nextID`) - FIRST_PROMISE_ID;
-    const deviceCount = getStringAsNat(`${vatID}.d.nextID`) - FIRST_DEVICE_ID;
-    const transcriptCount =
-      storage.get(`${vatID}.t.nextID`) - FIRST_TRANSCRIPT_ID;
+    const objectCount = compareToFirst(`${vatID}.o.nextID`, FIRST_OBJECT_ID);
+    const promiseCount = compareToFirst(`${vatID}.p.nextID`, FIRST_PROMISE_ID);
+    const deviceCount = compareToFirst(`${vatID}.d.nextID`, FIRST_DEVICE_ID);
+    const transcriptCount = compareToFirst(
+      `${vatID}.t.nextID`,
+      FIRST_TRANSCRIPT_ID,
+    );
     return harden({
-      objectCount: Nat(objectCount),
-      promiseCount: Nat(promiseCount),
-      deviceCount: Nat(deviceCount),
-      transcriptCount: Nat(Number(transcriptCount)),
+      objectCount: Number(objectCount),
+      promiseCount: Number(promiseCount),
+      deviceCount: Number(deviceCount),
+      transcriptCount: Number(transcriptCount),
     });
   }
 

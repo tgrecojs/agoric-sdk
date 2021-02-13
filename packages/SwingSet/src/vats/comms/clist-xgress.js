@@ -1,8 +1,8 @@
-import Nat from '@agoric/nat';
 import { assert } from '@agoric/assert';
 import { parseVatSlot, insistVatType } from '../../parseVatSlots';
 import { flipRemoteSlot, makeRemoteSlot } from './parseRemoteSlot';
 import { getRemote } from './remote';
+import { natNum, increment } from '../../natNum';
 
 export function makeIngressEgress(state, provideLocalForRemote) {
   function addEgress(remoteID, remoteRefID, vatoid) {
@@ -11,7 +11,7 @@ export function makeIngressEgress(state, provideLocalForRemote) {
     // allocating a new one. This is used to bootstrap initial connectivity
     // between machines.
     const remote = getRemote(state, remoteID);
-    Nat(remoteRefID);
+    natNum(remoteRefID);
     insistVatType('object', vatoid);
     const { allocatedByVat } = parseVatSlot(vatoid);
     assert(!allocatedByVat, `vatoid should be kernel-allocated`);
@@ -24,7 +24,7 @@ export function makeIngressEgress(state, provideLocalForRemote) {
     remote.fromRemote.set(inboundRRef, vatoid);
     remote.toRemote.set(vatoid, outboundRRef);
     if (remote.nextObjectIndex <= remoteRefID) {
-      remote.nextObjectIndex = remoteRefID + 1;
+      remote.nextObjectIndex = increment(remoteRefID);
     }
   }
 

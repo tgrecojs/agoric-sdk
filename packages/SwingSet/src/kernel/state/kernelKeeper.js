@@ -1,4 +1,3 @@
-import Nat from '@agoric/nat';
 import { assert, details } from '@agoric/assert';
 import { initializeVatState, makeVatKeeper } from './vatKeeper';
 import { initializeDeviceState, makeDeviceKeeper } from './deviceKeeper';
@@ -11,6 +10,14 @@ import {
 import { insistCapData } from '../../capdata';
 import { insistDeviceID, insistVatID, makeDeviceID, makeVatID } from '../id';
 import { kdebug } from '../kdebug';
+import {
+  fromStr,
+  toStr,
+  increment,
+  decrement,
+  natNum,
+  ZERO,
+} from '../../natNum';
 
 const enableKernelPromiseGC = true;
 
@@ -99,9 +106,53 @@ const FIRST_DEVICE_ID = 7;
 const FIRST_OBJECT_ID = 20;
 const FIRST_DEVNODE_ID = 30;
 const FIRST_PROMISE_ID = 40;
+const FIRST_CRANK_NUMBER = 0;
+
+const makeCounter = (storage, key, initial = fromStr(storage.get(key))) => {
+  initial = natNum(initial);
+  const setStorage = id => storage.set(key, toStr(id));
+  const getStorage = () => {
+    if (!storage.has(key)) {
+      throw new Error(`storage lacks required key ${key}`);
+    }
+    return fromStr(storage.get(key));
+  };
+  /**
+   * @typedef {Object} Counter
+   * @property {() => void} createStartingState
+   * @property {() => bigint} getNextID
+   * @property {() => Array<bigint>} getAllIDs
+   * @property {() => bigint} allocateNextID
+   */
+  const counter = harden({
+    createStartingState: () => setStorage(initial),
+    getNextID: () => getStorage(),
+    getAllIDs: () => {
+      const nextID = counter.getNextID();
+      const ids = [];
+      for (let i = initial; i < nextID; i = increment(i)) {
+        ids.push(i);
+      }
+      return ids;
+    },
+    allocateNextID: () => {
+      const nextID = counter.getNextID();
+      setStorage(increment(nextID));
+      return nextID;
+    },
+  });
+  return counter;
+};
 
 export default function makeKernelKeeper(storage, kernelSlog) {
   insistEnhancedStorageAPI(storage);
+
+  const vatC = makeCounter(storage, `vat.nextID`, FIRST_VAT_ID);
+  const deviceC = makeCounter(storage, `device.nextID`, FIRST_DEVICE_ID);
+  const koC = makeCounter(storage, `ko.nextID`, FIRST_OBJECT_ID);
+  const kpC = makeCounter(storage, `kp.nextID`, FIRST_PROMISE_ID);
+  const kdC = makeCounter(storage, `kd.nextID`, FIRST_DEVNODE_ID);
+  const crankC = makeCounter(storage, `crankNumber`, FIRST_CRANK_NUMBER);
 
   function getRequired(key) {
     if (!storage.has(key)) {
@@ -215,25 +266,24 @@ export default function makeKernelKeeper(storage, kernelSlog) {
   }
 
   function getCrankNumber() {
-    return Nat(Number(getRequired('crankNumber')));
+    return crankC.getNextID();
   }
 
   function incrementCrankNumber() {
-    const crankNumber = Nat(Number(getRequired('crankNumber')));
-    storage.set('crankNumber', `${crankNumber + 1}`);
+    return crankC.allocateNextID();
   }
 
   function createStartingKernelState() {
     storage.set('vat.names', '[]');
     storage.set('vat.dynamicIDs', '[]');
-    storage.set('vat.nextID', JSON.stringify(FIRST_VAT_ID));
+    vatC.createStartingState();
     storage.set('device.names', '[]');
-    storage.set('device.nextID', JSON.stringify(FIRST_DEVICE_ID));
-    storage.set('ko.nextID', JSON.stringify(FIRST_OBJECT_ID));
-    storage.set('kd.nextID', JSON.stringify(FIRST_DEVNODE_ID));
-    storage.set('kp.nextID', JSON.stringify(FIRST_PROMISE_ID));
+    deviceC.createStartingState();
+    koC.createStartingState();
+    kdC.createStartingState();
+    kpC.createStartingState();
     storage.set('runQueue', JSON.stringify([]));
-    storage.set('crankNumber', '0');
+    crankC.createStartingState();
   }
 
   function addBundle(name, bundle) {
@@ -246,9 +296,8 @@ export default function makeKernelKeeper(storage, kernelSlog) {
 
   function addKernelObject(ownerID) {
     insistVatID(ownerID);
-    const id = Nat(Number(getRequired('ko.nextID')));
+    const id = koC.allocateNextID();
     kdebug(`Adding kernel object ko${id} for ${ownerID}`);
-    storage.set('ko.nextID', `${id + 1}`);
     const s = makeKernelSlot('object', id);
     storage.set(`${s}.owner`, ownerID);
     incStat('kernelObjects');
@@ -266,9 +315,8 @@ export default function makeKernelKeeper(storage, kernelSlog) {
 
   function addKernelDeviceNode(deviceID) {
     insistDeviceID(deviceID);
-    const id = Nat(Number(getRequired('kd.nextID')));
+    const id = kdC.allocateNextID();
     kdebug(`Adding kernel device kd${id} for ${deviceID}`);
-    storage.set('kd.nextID', `${id + 1}`);
     const s = makeKernelSlot('device', id);
     storage.set(`${s}.owner`, deviceID);
     incStat('kernelDevices');
@@ -283,8 +331,7 @@ export default function makeKernelKeeper(storage, kernelSlog) {
   }
 
   function addKernelPromise(policy) {
-    const kpidNum = Nat(Number(getRequired('kp.nextID')));
-    storage.set('kp.nextID', `${kpidNum + 1}`);
+    const kpidNum = kpC.allocateNextID();
     const kpid = makeKernelSlot('promise', kpidNum);
     storage.set(`${kpid}.state`, 'unresolved');
     storage.set(`${kpid}.subscribers`, '');
@@ -527,8 +574,8 @@ export default function makeKernelKeeper(storage, kernelSlog) {
       throw new Error(`${kernelSlot} is '${p.state}', not 'unresolved'`);
     }
     const nkey = `${kernelSlot}.queue.nextID`;
-    const nextID = Nat(Number(storage.get(nkey)));
-    storage.set(nkey, `${nextID + 1}`);
+    const queueC = makeCounter(storage, nkey);
+    const nextID = queueC.allocateNextID();
     const qid = `${kernelSlot}.queue.${nextID}`;
     storage.set(qid, JSON.stringify(msg));
   }
@@ -600,8 +647,7 @@ export default function makeKernelKeeper(storage, kernelSlog) {
   }
 
   function allocateUnusedVatID() {
-    const nextID = Nat(Number(getRequired(`vat.nextID`)));
-    storage.set(`vat.nextID`, `${nextID + 1}`);
+    const nextID = vatC.allocateNextID();
     return makeVatID(nextID);
   }
 
@@ -662,9 +708,9 @@ export default function makeKernelKeeper(storage, kernelSlog) {
    */
   function incrementRefCount(kernelSlot, _tag) {
     if (kernelSlot && parseKernelSlot(kernelSlot).type === 'promise') {
-      const refCount = Nat(Number(storage.get(`${kernelSlot}.refCount`))) + 1;
+      const refCountC = makeCounter(storage, `${kernelSlot}.refCount`);
+      refCountC.allocateNextID();
       // kdebug(`++ ${kernelSlot}  ${tag} ${refCount}`);
-      storage.set(`${kernelSlot}.refCount`, `${refCount}`);
     }
   }
 
@@ -681,12 +727,13 @@ export default function makeKernelKeeper(storage, kernelSlog) {
    */
   function decrementRefCount(kernelSlot, tag) {
     if (kernelSlot && parseKernelSlot(kernelSlot).type === 'promise') {
-      let refCount = Nat(Number(storage.get(`${kernelSlot}.refCount`)));
-      assert(refCount > 0, details`refCount underflow {kernelSlot} ${tag}`);
-      refCount -= 1;
+      const refCountC = makeCounter(storage, `${kernelSlot}.refCount`);
+      let refCount = refCountC.getNextID();
+      assert(refCount > ZERO, details`refCount underflow {kernelSlot} ${tag}`);
+      refCount = decrement(refCount);
       // kdebug(`-- ${kernelSlot}  ${tag} ${refCount}`);
       storage.set(`${kernelSlot}.refCount`, `${refCount}`);
-      if (refCount === 0) {
+      if (refCount === ZERO) {
         deadKernelPromises.add(kernelSlot);
         return true;
       }
@@ -747,15 +794,12 @@ export default function makeKernelKeeper(storage, kernelSlog) {
   }
 
   function getAllVatIDs() {
-    const nextID = Nat(Number(getRequired(`vat.nextID`)));
-    const vatIDs = [];
-    for (let i = FIRST_VAT_ID; i < nextID; i += 1) {
-      const vatID = makeVatID(i);
-      if (storage.has(`${vatID}.o.nextID`)) {
-        vatIDs.push(vatID);
-      }
-    }
-    return harden(vatIDs);
+    return harden(
+      vatC
+        .getAllIDs()
+        .map(makeVatID)
+        .filter(vatID => storage.has(`${vatID}.o.nextID`)),
+    );
   }
 
   function getDeviceIDForName(name) {
@@ -771,8 +815,7 @@ export default function makeKernelKeeper(storage, kernelSlog) {
     assert.typeof(name, 'string');
     const k = `device.name.${name}`;
     if (!storage.has(k)) {
-      const nextID = Nat(Number(getRequired(`device.nextID`)));
-      storage.set(`device.nextID`, `${nextID + 1}`);
+      const nextID = deviceC.allocateNextID();
       storage.set(k, makeDeviceID(nextID));
       const names = JSON.parse(getRequired('device.names'));
       names.push(name);
@@ -794,15 +837,12 @@ export default function makeKernelKeeper(storage, kernelSlog) {
   }
 
   function getAllDeviceIDs() {
-    const nextID = Nat(Number(getRequired(`device.nextID`)));
-    const deviceIDs = [];
-    for (let i = FIRST_DEVICE_ID; i < nextID; i += 1) {
-      const deviceID = makeDeviceID(i);
-      if (storage.has(`${deviceID}.o.nextID`)) {
-        deviceIDs.push(deviceID);
-      }
-    }
-    return harden(deviceIDs);
+    return harden(
+      deviceC
+        .getAllIDs()
+        .map(makeDeviceID)
+        .filter(deviceID => storage.has(`${deviceID}.o.nextID`)),
+    );
   }
 
   // used for debugging, and tests. This returns a JSON-serializable object.
@@ -833,7 +873,7 @@ export default function makeKernelKeeper(storage, kernelSlog) {
     }
 
     function compareNumbers(a, b) {
-      return a - b;
+      return Number(a - b);
     }
 
     function compareStrings(a, b) {
@@ -857,15 +897,15 @@ export default function makeKernelKeeper(storage, kernelSlog) {
         0,
     );
 
-    const promises = [];
+    const promises = kpC
+      .getAllIDs()
+      .map(id => makeKernelSlot('promise', id))
+      .filter(hasKernelPromise)
+      .map(kpid => ({
+        id: kpid,
+        ...getKernelPromise(kpid),
+      }));
 
-    const nextPromiseID = Nat(Number(getRequired('kp.nextID')));
-    for (let i = FIRST_PROMISE_ID; i < nextPromiseID; i += 1) {
-      const kpid = makeKernelSlot('promise', i);
-      if (hasKernelPromise(kpid)) {
-        promises.push({ id: kpid, ...getKernelPromise(kpid) });
-      }
-    }
     promises.sort((a, b) => compareStrings(a.id, b.id));
 
     const runQueue = JSON.parse(getRequired('runQueue'));

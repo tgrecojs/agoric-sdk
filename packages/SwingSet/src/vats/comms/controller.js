@@ -1,6 +1,6 @@
-import Nat from '@agoric/nat';
 import { assert, details } from '@agoric/assert';
 import { addRemote } from './remote';
+import { natNum } from '../../natNum';
 
 const UNDEFINED = harden({
   body: JSON.stringify({ '@qclass': 'undefined' }),
@@ -74,7 +74,7 @@ export function deliverToController(
       details`unknown remote name ${remoteName}`,
     );
     const remoteID = state.names.get(remoteName);
-    const remoteRefID = Nat(args[1]);
+    const remoteRefID = natNum(args[1]);
     if (args[2]['@qclass'] !== 'slot' || args[2].index !== 0) {
       throw new Error(`unexpected args for addEgress(): ${controllerArgs}`);
     }
@@ -93,7 +93,7 @@ export function deliverToController(
       details`unknown remote name ${remoteName}`,
     );
     const remoteID = state.names.get(remoteName);
-    const remoteRefID = Nat(args[1]);
+    const remoteRefID = natNum(args[1]);
     const localRef = addIngress(remoteID, remoteRefID);
     const data = {
       body: '{"@qclass":"slot","index":0}',

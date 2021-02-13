@@ -1,5 +1,5 @@
-import Nat from '@agoric/nat';
 import { assert } from '@agoric/assert';
+import { toStr, fromStr } from './natNum';
 
 // NOTE: confusing terminology: "slot" vs. "reference".  All these things
 // called "slots" are references, but the word "slot" suggests something into
@@ -68,10 +68,10 @@ export function parseVatSlot(s) {
       throw new Error(`invalid vatSlot ${s}`);
     }
     virtual = true;
-    id = Nat(Number(idSuffix.substr(0, delim)));
-    subid = Nat(Number(idSuffix.slice(delim + 1)));
+    id = fromStr(idSuffix.substr(0, delim));
+    subid = fromStr(idSuffix.slice(delim + 1));
   } else {
-    id = Nat(Number(idSuffix));
+    id = fromStr(idSuffix);
   }
 
   return { type, allocatedByVat, virtual, id, subid };
@@ -91,9 +91,9 @@ export function parseVatSlot(s) {
 export function makeVatSlot(type, allocatedByVat, id) {
   let idSuffix;
   if (allocatedByVat) {
-    idSuffix = `+${Nat(id)}`;
+    idSuffix = `+${toStr(id)}`;
   } else {
-    idSuffix = `-${Nat(id)}`;
+    idSuffix = `-${toStr(id)}`;
   }
 
   if (type === 'object') {

@@ -263,19 +263,19 @@ test.serial('mailbox outbound', async t => {
   await c.run();
   t.deepEqual(s.exportToData(), {
     peer1: {
-      inboundAck: 13,
+      inboundAck: 13n,
       outbox: [
-        [2, 'data2'],
-        [3, 'data3'],
+        [2n, 'data2'],
+        [3n, 'data3'],
       ],
     },
     peer2: {
-      inboundAck: 0,
+      inboundAck: 0n,
       outbox: [],
     },
     peer3: {
-      inboundAck: 0,
-      outbox: [[5, 'data5']],
+      inboundAck: 0n,
+      outbox: [[5n, 'data5']],
     },
   });
 

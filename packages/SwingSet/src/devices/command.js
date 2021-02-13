@@ -1,5 +1,6 @@
-import Nat from '@agoric/nat';
 import { makePromiseKit } from '@agoric/promise-kit';
+
+import { natNum, increment, ZERO } from '../natNum';
 
 export default function buildCommand(broadcastCallback) {
   if (!broadcastCallback) {
@@ -7,7 +8,7 @@ export default function buildCommand(broadcastCallback) {
   }
   let inboundCallback;
   const srcPath = require.resolve('./command-src');
-  let nextCount = 0;
+  let nextCount = ZERO;
   const responses = new Map();
 
   function inboundCommand(obj) {
@@ -16,7 +17,7 @@ export default function buildCommand(broadcastCallback) {
     // response
     const { promise, resolve, reject } = makePromiseKit();
     const count = nextCount;
-    nextCount += 1;
+    nextCount = increment(count);
     responses.set(count, { resolve, reject });
     if (!inboundCallback) {
       throw new Error(`inboundCommand before registerInboundCallback`);
@@ -42,7 +43,7 @@ export default function buildCommand(broadcastCallback) {
   }
 
   function deliverResponse(kCount, kIsReject, kResponseString) {
-    const count = Nat(kCount);
+    const count = natNum(kCount);
     const isReject = Boolean(kIsReject);
     let obj;
     // TODO: is this safe against kernel-realm trickery? It's awfully handy

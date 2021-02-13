@@ -1,4 +1,4 @@
-import Nat from '@agoric/nat';
+import { fromStr, natNum } from '../natNum';
 
 // Vats are identified by an integer index, which (for typechecking purposes)
 // is encoded as `vNN`. Devices are similarly identified as `dNN`. Both have
@@ -27,7 +27,7 @@ export function insistVatID(s) {
     if (!s.startsWith(`v`)) {
       throw new Error(`does not start with 'v'`);
     }
-    Nat(Number(s.slice(1)));
+    fromStr(s.slice(1));
   } catch (e) {
     throw new Error(`'${s} is not a 'vNN'-style VatID: ${e.message}`);
   }
@@ -41,7 +41,7 @@ export function insistVatID(s) {
  * @returns {string} a vat ID string of the form "vNN" where NN is the index.
  */
 export function makeVatID(index) {
-  return `v${Nat(index)}`;
+  return `v${natNum(index)}`;
 }
 
 /**
@@ -63,7 +63,7 @@ export function insistDeviceID(s) {
     if (!s.startsWith(`d`)) {
       throw new Error(`does not start with 'd'`);
     }
-    Nat(Number(s.slice(1)));
+    fromStr(s.slice(1));
   } catch (e) {
     throw new Error(`'${s} is not a 'dNN'-style DeviceID: ${e.message}`);
   }
@@ -77,7 +77,7 @@ export function insistDeviceID(s) {
  * @returns {string} a device ID string of the form "dNN" where NN is the index.
  */
 export function makeDeviceID(index) {
-  return `d${Nat(index)}`;
+  return `d${natNum(index)}`;
 }
 
 /**
@@ -108,5 +108,5 @@ export function parseVatOrDeviceID(s) {
   } else {
     throw new Error(`'${s}' is neither a VatID nor a DeviceID`);
   }
-  return harden({ type, id: Nat(Number(idSuffix)) });
+  return harden({ type, id: fromStr(idSuffix) });
 }

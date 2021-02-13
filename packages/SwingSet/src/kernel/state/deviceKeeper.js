@@ -2,11 +2,13 @@
  * Kernel's keeper of persistent state for a device.
  */
 
-import Nat from '@agoric/nat';
 import { assert, details } from '@agoric/assert';
 import { parseKernelSlot } from '../parseKernelSlots';
 import { makeVatSlot, parseVatSlot } from '../../parseVatSlots';
 import { insistDeviceID } from '../id';
+import { fromStr, toStr, increment } from '../../natNum';
+
+const FIRST_DEVICE_STATE_ID = 10;
 
 /**
  * Establish a device's state.
@@ -17,7 +19,7 @@ import { insistDeviceID } from '../id';
  * TODO move into makeDeviceKeeper?
  */
 export function initializeDeviceState(storage, deviceID) {
-  storage.set(`${deviceID}.o.nextID`, '10');
+  storage.set(`${deviceID}.o.nextID`, toStr(FIRST_DEVICE_STATE_ID));
 }
 
 /**
@@ -32,6 +34,12 @@ export function initializeDeviceState(storage, deviceID) {
  */
 export function makeDeviceKeeper(storage, deviceID, addKernelDeviceNode) {
   insistDeviceID(deviceID);
+
+  function advance(key) {
+    const id = fromStr(storage.get(key));
+    storage.set(key, toStr(increment(id)));
+    return id;
+  }
 
   function setSourceAndOptions(source, options) {
     assert.typeof(source, 'object');
@@ -108,8 +116,7 @@ export function makeDeviceKeeper(storage, deviceID, addKernelDeviceNode) {
 
       let id;
       if (type === 'object') {
-        id = Nat(Number(storage.get(`${deviceID}.o.nextID`)));
-        storage.set(`${deviceID}.o.nextID`, `${id + 1}`);
+        id = advance(`${deviceID}.o.nextID`);
       } else if (type === 'device') {
         throw new Error('devices cannot import other device nodes');
       } else if (type === 'promise') {

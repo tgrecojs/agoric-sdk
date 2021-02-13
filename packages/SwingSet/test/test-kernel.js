@@ -28,7 +28,7 @@ function checkPromises(t, kernel, expected) {
   // extract the kernel promise table and assert that the contents match the
   // expected list. This sorts on the promise ID, then does a t.deepEqual
   function comparePromiseIDs(a, b) {
-    return a.id - b.id;
+    return Number(a.id - b.id);
   }
 
   const got = Array.from(kernel.dump().promises);
@@ -988,7 +988,7 @@ test('transcript', async t => {
         response: null,
       },
     ],
-    crankNumber: 1,
+    crankNumber: '1',
   });
 });
 

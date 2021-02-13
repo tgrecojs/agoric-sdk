@@ -1,4 +1,4 @@
-import Nat from '@agoric/nat';
+import { Nat } from '@agoric/nat';
 
 /**
  * Endowments for a Timer device that can be made available to SwingSet vats.
@@ -20,8 +20,9 @@ export function buildTimer() {
 
   // poll() is made available to the host loop so it can provide the time.
   function poll(time) {
+    Nat(time);
     try {
-      return Boolean(devicePollFunction(Nat(time)));
+      return Boolean(devicePollFunction(time));
     } catch (e) {
       throw new Error(`error in devicePollFunction: ${e}`);
     }

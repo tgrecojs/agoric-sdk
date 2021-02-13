@@ -1,4 +1,4 @@
-import Nat from '@agoric/nat';
+import { Nat } from '@agoric/nat';
 import { assert, details } from '@agoric/assert';
 import { makeNotifierKit } from '@agoric/notifier';
 
@@ -10,7 +10,9 @@ export function buildRootObject(vatPowers) {
     /** @type {TimerService} */
     const timerService = {
       getCurrentTimestamp() {
-        return Nat(D(timerNode).getLastPolled());
+        const timestamp = D(timerNode).getLastPolled();
+        Nat(timestamp);
+        return timestamp;
       },
       setWakeup(delaySecs, handler) {
         return D(timerNode).setWakeup(delaySecs, handler);
@@ -26,8 +28,9 @@ export function buildRootObject(vatPowers) {
       },
       makeRepeater(delaySecs, interval) {
         Nat(delaySecs);
+        Nat(interval);
         assert(
-          Nat(interval) > 0,
+          interval > 0,
           details`makeRepeater's second parameter must be a positive integer: ${interval}`,
         );
 
@@ -47,8 +50,9 @@ export function buildRootObject(vatPowers) {
       },
       makeNotifier(delaySecs, interval) {
         Nat(delaySecs);
+        Nat(interval);
         assert(
-          Nat(interval) > 0,
+          interval > 0,
           details`makeNotifier's second parameter must be a positive integer: ${interval}`,
         );
 
