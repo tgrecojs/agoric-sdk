@@ -21,6 +21,7 @@ import { getKpidsToRetire } from './cleanup';
 import { makeVatLoader } from './loadVat';
 import { makeVatTranslators } from './vatTranslator';
 import { makeDeviceTranslators } from './deviceTranslator';
+import { JSONstringify } from '../natNum';
 
 function abbreviateReviver(_, arg) {
   if (typeof arg === 'string' && arg.length >= 40) {
@@ -138,7 +139,7 @@ export default function buildKernel(
   // 'result' value returned by c.queueToExport()
   function testLog(...args) {
     const rendered = args.map(arg =>
-      typeof arg === 'string' ? arg : JSON.stringify(arg, abbreviateReviver),
+      typeof arg === 'string' ? arg : JSONstringify(arg, abbreviateReviver),
     );
     ephemeral.log.push(rendered.join(''));
   }
