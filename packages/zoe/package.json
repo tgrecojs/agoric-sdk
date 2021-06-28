@@ -13,6 +13,7 @@
     "build": "yarn build-zcfBundle",
     "test": "ava --verbose",
     "test:unit": "ava 'test/unitTests/**/test-*.js' -T 1m --verbose",
+    "test:tg": "ava 'test/unitTests/contracts/loanProtocol/test-*.js' -T 1m --verbose",
     "test:swingset": "ava 'test/swingsetTests/**/test-*.js' -T 10m --verbose",
     "test:xs": "yarn test:xs-unit",
     "test:xs-unit": "ava-xs --verbose",

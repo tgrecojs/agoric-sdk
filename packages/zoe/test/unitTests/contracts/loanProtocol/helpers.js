@@ -7,7 +7,7 @@ import '../../../../exported';
 
 import { E } from '@agoric/eventual-send';
 import bundleSource from '@agoric/bundle-source';
-import { AmountMath } from '@agoric/ertp';
+import { AmountMath, makeIssuerKit } from '@agoric/ertp';
 
 import { setup } from '../../setupBasicMints';
 import { setupZCFTest } from '../../zcf/setupZcfTest';
@@ -89,18 +89,19 @@ export const checkPayouts = async (
 };
 
 export const setupAgTokenMint = async terms => {
-  const { linkKit: linkCollateralKit, agLinkKit: linkLoanKit } = setup();
+  const agLinkBundle = makeIssuerKit('agLink');
+  const linkBundle = makeIssuerKit('link');
 
   if (!terms) {
     terms = harden({
-      mmr: makeRatio(150n, linkCollateralKit.brand),
+      mmr: makeRatio(150n, linkBundle.brand),
       autoswapInstance: {},
     });
   }
 
   const issuerKeywordRecord = harden({
-    Collateral: linkCollateralKit.issuer,
-    Loan: linkLoanKit.issuer,
+    Collateral: linkBundle.issuer,
+    Loan: agLinkBundle.issuer,
   });
 
   const { zcf, zoe, installation, instance } = await setupZCFTest(
@@ -111,8 +112,8 @@ export const setupAgTokenMint = async terms => {
   return {
     zcf,
     zoe,
-    collateralKit,
-    loanKit,
+    linkCollateralKit: linkBundle,
+    linkLoanKit: agLinkBundle,
     installation,
     instance,
   };
