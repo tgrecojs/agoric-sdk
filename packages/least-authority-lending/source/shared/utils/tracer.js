@@ -1,6 +1,6 @@
 let debugInstance = 1;
 
-function makeTracer(name) {
+const makeTracer = name => {
   debugInstance += 1;
   let debugCount = 1;
   const key = `----- ${name}.${debugInstance} `;
@@ -8,6 +8,6 @@ function makeTracer(name) {
     console.log(key, (debugCount += 1), ...args);
   }
   return debugTick;
-}
+};
 
 export { makeTracer };

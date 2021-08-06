@@ -51,13 +51,6 @@ test('createIssuerKits()', async t => {
   );
 });
 
-const makePayment = brand => value => AmountMath.make(brand, value);
-
-const makeProposal = (userFunds, poolTokens) => ({
-  give: { Deposit: userFunds.toUpperCase() },
-  want: { LendingPoolToken: poolTokens.toUpperCase() },
-});
-
 test('createTokenKit()', async t => {
   t.plan(4);
   const [

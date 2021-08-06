@@ -11,7 +11,6 @@ import {
   collateralTypes,
   laTokenIssueKits,
 } from '../../shared/utils/zoe';
-import { makeTracer } from './tracer';
 
 const prepend = string => target => `${string}${target}`;
 const getBrandName = brand => brand.getAllegedName();
@@ -46,7 +45,6 @@ test('zoe helper functions', async assert => {
     'should return an issuer kit for RUN',
   );
 });
-const makeLendingPoolDepost = userSeat => {};
 const getValue = ({ value }) => value;
 test('user Purses', async assert => {
   const testLinkPurse = linkKit.issuer.makeEmptyPurse();
