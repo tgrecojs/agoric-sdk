@@ -7,7 +7,7 @@ const defaultPoolConfig = {
   brandName: 'Default',
   zcfSeats: {},
   keywords: harden({
-    give: { PoolToken: null },
+    give: { PoolTokenNFT: null },
     want: { Liquidity: null },
   }),
   rates: {
@@ -24,7 +24,7 @@ const createPoolConfig = (obj = defaultPoolConfig) => ({
 
 const defaultDepositShape = {
   give: { Liquidity: null },
-  want: { PoolToken: null },
+  want: { PoolTokenNFT: null },
 };
 
 const createProposalAssertion = (proposal = { give: {}, want: {} }) => seat =>

@@ -5,7 +5,7 @@ import '@agoric/zoe/exported';
 import '@agoric/zoe/src/contracts/exported';
 import { assert, details as X } from '@agoric/assert';
 import { Far } from '@agoric/marshal';
-import { AmountMath, makeIssuerKit } from '@agoric/ertp';
+import { AmountMath, makeIssuerKit, AssetKind } from '@agoric/ertp';
 import { E } from '@agoric/eventual-send';
 import {
   assertProposalShape,
@@ -19,16 +19,14 @@ import {
 } from '@agoric/zoe/src/contractSupport/index.js';
 import { depositAssertion } from '../../shared/utils/helpers';
 import { makeTracer } from '../../shared/utils/tracer';
+import { collateralLists } from '../../shared/utils/interestRates';
 
+const [usdcRates, runRates, bldRates, linkRates] = collateralLists;
 const defaultPoolConfig = {
   brandName: 'Default',
   zcfSeats: {},
-  keywords: harden({
-    give: { PoolToken: null },
-    want: { Liquidity: null },
-  }),
+  keywords: harden({}),
   rates: {
-    stableBorrow: 8,
     variableBorrow: 15,
     lendRate: 3,
   },
@@ -43,7 +41,7 @@ const start = async zcf => {
   });
 
   const laLinkPool = createPoolConfig({
-    mint: await zcf.makeZCFMint('LaLink'),
+    mint: await zcf.makeZCFMint('LaLink', AssetKind.SET),
     brandName: 'LaLink',
     zcfSeats: zcf.makeEmptySeatKit(),
   });
@@ -56,10 +54,16 @@ const start = async zcf => {
     const handleDeposit = user => {
       const {
         mint,
+        brandName,
+        positionCount,
         zcfSeats: { zcfSeat, userSeat },
       } = poolConfig;
 
+      const poolSeat = /** @type {ZCFSeat} */ (zcfSeat);
       const { brand: laTokenBrand } = mint.getIssuerRecord();
+      const { brand: poolPositionBrand, mint: poolTokenMint } = makeIssuerKit(
+        `${brandName}Tokens`,
+      );
       const { want, give } = user.getProposal();
       depositAssertion(user);
 
@@ -69,32 +73,29 @@ const start = async zcf => {
       // )(give.Liquidity.value);
       const userAllocation = user.getCurrentAllocation();
 
-      const { zcfSeat: _laTokenSeat } = zcf.makeEmptySeatKit();
-      const payoutAmt = AmountMath.make(
-        laTokenBrand,
-        userAllocation.Liquidity.value,
-      );
-
-      // Synchronously mint and allocate amount to seat.
+      const positionToken = [
+        {
+          positionCount: positionCount ? positionCount + 1 : 1,
+          payoutAmt: give.Liquidity,
+          tokenId: positionCount ? positionCount + 1 : 1,
+          underlyingToken: give.Liquidity.brand.getAllegedName(),
+          tokensDeposited: give.Liquidity.value,
+        },
+      ];
       mint.mintGains(
         {
-          PoolToken: payoutAmt,
+          PoolTokenNFT: AmountMath.make(laTokenBrand, positionToken),
         },
-        _laTokenSeat,
+        user,
       );
 
-      zcfSeat.incrementBy(
+      poolSeat.incrementBy(
         user.decrementBy({ Liquidity: userAllocation.Liquidity }),
       );
-      trace('zcfSeat::hasStagedAllocation', zcfSeat.hasStagedAllocation());
 
-      // This doesn't seem to
-      user.incrementBy(_laTokenSeat.decrementBy({ PoolToken: want.PoolToken }));
-
+      trace('zcfSeat::hasStagedAllocation', poolSeat.hasStagedAllocation());
       trace('user::hasStagedAllocation', user.hasStagedAllocation());
-
-      zcf.reallocate(zcfSeat, user);
-
+      zcf.reallocate(poolSeat, user);
       user.exit();
 
       return 'Offer completed. You should receive a payment from Zoe';
@@ -102,10 +103,27 @@ const start = async zcf => {
     return handleDeposit;
   };
 
-  const creatorFacet = harden({
+  const updateUiState = () => {};
+  // change to publicFacet
+  const creatorFacet = Far('creatorFacet', {
     createDepositInvitation,
     depositToPool: (pool = laLinkPool) =>
       zcf.makeInvitation(createDepositInvitation(pool), 'handle mint'),
+    initBldPool: () =>
+      zcf.makeInvitation(
+        createDepositInvitation(laBldPool),
+        'mint LaBLD token',
+      ),
+    initRunPool: () =>
+      zcf.makeInvitation(
+        createDepositInvitation(LaRunPool),
+        'mint LaRun tokens',
+      ),
+    createPosition: () =>
+      zcf.makeInvitation(
+        createDepositInvitation(laLinkPool),
+        'create position from depsoit',
+      ),
     initLinkPool: () =>
       zcf.makeInvitation(
         createDepositInvitation(laLinkPool),
