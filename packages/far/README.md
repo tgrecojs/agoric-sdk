@@ -1,7 +1,7 @@
 # Agoric Far Object helpers
 
 The `@agoric/far` package provides a convenient way to use the Agoric
-[distributed objects system](https://agoric.com/documentation/js-programming/far.html) without  relying on the underlying messaging
+[distributed objects system](https://agoric.com/documentation/guides/js-programming/far.html#far-remotable-and-marshaling) without  relying on the underlying messaging
 implementation.
 
 It exists to reduce the boilerplate in Hardened JavaScript vats that are running
