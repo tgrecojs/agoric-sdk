@@ -39,6 +39,30 @@ import { makeVaultParamManager, makeElectorateParamManager } from './params.js';
 
 const { details: X } = assert;
 
+const compose =
+  (...fns) =>
+  initial =>
+    fns.reduceRight((acc, fn) => fn(acc), initial);
+const pipe =
+  (...fns) =>
+  initial =>
+    fns.reduce((acc, fn) => fn(acc), initial);
+
+const handleParamNameFn =
+  ({ parameterName }) =>
+  fn =>
+    fn(parameterName);
+
+const getNat = o => handleParamNameFn(o)('getNat');
+const getRatio = o => handleParamNameFn(o)('getRatio');
+const getNatParamState = paramDesc => getNat(paramDesc);
+const getRatioParamState = paramDesc => getRatio(paramDesc);
+const getParams = x => x.getParams();
+const lookupProp = map => key => map.get(key);
+const COLLATERAL_BRAND = 'collateralBrand';
+const getCurrentSeatAllocation = seat => seat.getCurrentAllocation();
+const lookupCollateralFns = map => compose(lookupProp(map));
+
 /** @type {ContractStartFn} */
 export const start = async (zcf, privateArgs) => {
   const {
@@ -105,6 +129,10 @@ export const start = async (zcf, privateArgs) => {
 
   /** @type { Store<Brand, VaultParamManager> } */
   const vaultParamManagers = makeScalarMap('brand');
+  const getCollateralBrandFromMap = o =>
+    lookupCollateralFns(vaultParamManagers)(o[COLLATERAL_BRAND]);
+
+  const getGovernedParams = compose(getParams, getCollateralBrandFromMap);
 
   /** @type {AddVaultType} */
   const addVaultType = async (collateralIssuer, collateralKeyword, rates) => {
@@ -188,10 +216,6 @@ export const start = async (zcf, privateArgs) => {
     );
   };
 
-  // Eventually the reward pool will live elsewhere. For now it's here for
-  // bookkeeping. It's needed in tests.
-  const getRewardAllocation = () => rewardPoolSeat.getCurrentAllocation();
-
   // TODO(#4021) remove this method
   const mintBootstrapPayment = () => {
     const { zcfSeat: bootstrapZCFSeat, userSeat: bootstrapUserSeat } =
@@ -222,22 +246,6 @@ export const start = async (zcf, privateArgs) => {
     return getBootstrapPayment;
   };
 
-  const getRatioParamState = paramDesc => {
-    return vaultParamManagers
-      .get(paramDesc.collateralBrand)
-      .getRatio(paramDesc.parameterName);
-  };
-
-  const getNatParamState = paramDesc => {
-    return vaultParamManagers
-      .get(paramDesc.collateralBrand)
-      .getNat(paramDesc.parameterName);
-  };
-
-  const getGovernedParams = paramDesc => {
-    return vaultParamManagers.get(paramDesc.collateralBrand).getParams();
-  };
-
   /** @type {VaultFactoryPublicFacet} */
   const publicFacet = Far('vaultFactory public facet', {
     makeLoanInvitation,
@@ -258,20 +266,17 @@ export const start = async (zcf, privateArgs) => {
 
   const getParamMgrRetriever = () =>
     Far('paramManagerRetriever', {
-      get: paramDesc => {
-        if (paramDesc.key === 'main') {
-          return electorateParamManager;
-        } else {
-          return vaultParamManagers.get(paramDesc.collateralBrand);
-        }
-      },
+      get: paramDesc =>
+        paramDesc.key === 'main'
+          ? electorateParamManager
+          : vaultParamManagers.get(paramDesc.collateralBrand),
     });
 
   /** @type {VaultFactory} */
   const vaultFactory = Far('vaultFactory machine', {
     addVaultType,
     getCollaterals,
-    getRewardAllocation,
+    getRewardAllocation: () => getCurrentSeatAllocation(rewardPoolSeat),
     getBootstrapPayment: mintBootstrapPayment(),
     makeCollectFeesInvitation,
     getContractGovernor: () => electionManager,
