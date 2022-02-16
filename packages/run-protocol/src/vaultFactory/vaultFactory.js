@@ -31,7 +31,6 @@ import { makeRatioFromAmounts } from '@agoric/zoe/src/contractSupport/ratio.js';
 import { AmountMath } from '@agoric/ertp';
 import { Far } from '@endo/marshal';
 import { CONTRACT_ELECTORATE } from '@agoric/governance';
-
 import { makeVaultManager } from './vaultManager.js';
 import { makeLiquidationStrategy } from './liquidateMinimum.js';
 import { makeMakeCollectFeesInvitation } from './collectRewardFees.js';
@@ -45,6 +44,7 @@ import {
   getParams,
   lookupCollateralFns,
 } from './helpers';
+import { tryCatch, Pred, fromNullable } from './helpers/adts';
 
 const { details: X } = assert;
 
@@ -159,30 +159,68 @@ export const start = async (zcf, privateArgs) => {
     return vm;
   };
 
+  const handleAssertProposal = proposal => seat =>
+    assertProposalShape(seat, proposal);
+
+  const handleLoanProposalShape = handleAssertProposal({
+    give: { Collateral: null },
+    want: { RUN: null },
+  });
+
+  const view = (lens, store) => lens.view(store);
+  const set = (lens, value, store) => lens.set(value, store);
+
+  // A function which takes a prop, and returns naive // lens accessors for that prop.
+
+  const lensProp = prop => ({
+    view: store => store[prop],
+    // This is very naive, because it only works for objects:
+    set: (value, store) => ({ ...store, [prop]: value }),
+  });
+
+  const giveLens = lensProp('give');
+  const collateralLens = lensProp('Collateral');
+
+  const viewGive = ({ getProposal }) => view(giveLens, getProposal());
+
   /** Make a loan in the vaultManager based on the collateral type. */
   const makeLoanInvitation = () => {
     /** @param {ZCFSeat} seat */
     const makeLoanHook = async seat => {
-      assertProposalShape(seat, {
-        give: { Collateral: null },
-        want: { RUN: null },
-      });
-      const {
-        give: { Collateral: collateralAmount },
-      } = seat.getProposal();
-      const { brand: brandIn } = collateralAmount;
+      fromNullable(!handleAssert(handleLoanProposalShape(seat)))
+        .map(x => x)
+        .fold(
+          x => '',
+          y => y,
+        );
+      const LoanM = Pred(x => handleAssert(handleLoanProposalShape(x)))
+        .contramap(x => {
+          console.log({ x });
+          return x;
+        })
+        .run(seat);
+      console.log({ LoanM });
+
+      const boxed = tryCatch(() => handleLoanProposalShape(seat))
+        .map(() => view(collateralLens, viewGive(seat)))
+        .fold(
+          x => x,
+          x => collateralTypes.get(x.brand).makeLoanKit(seat),
+        );
+
+      handleLoanProposalShape(seat);
+      console.log({ boxed, inspect: boxed.inspect() });
+      const { brand: brandIn } = view(collateralLens, viewGive(seat));
       assert(
         collateralTypes.has(brandIn),
         X`Not a supported collateral type ${brandIn}`,
       );
       /** @type {VaultManager} */
-      const mgr = collateralTypes.get(brandIn);
-      return mgr.makeLoanKit(seat);
+      return collateralTypes.get(brandIn).makeLoanKit(seat);
     };
 
     return zcf.makeInvitation(makeLoanHook, 'MakeLoan');
   };
-
   const getCollaterals = async () => {
     // should be collateralTypes.map((vm, brand) => ({
     return harden(

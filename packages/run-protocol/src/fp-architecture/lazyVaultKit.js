@@ -13,6 +13,55 @@ console.log({ urlSrc });
 
 const ramdap = path.dirname(urlSrc);
 console.log({ ramdap });
+const Right = x => ({
+  map: g => Right(g(x)),
+  fold: (f, g) => Right(g(x)),
+  inspect: () => `Right::(${x})`,
+});
+
+const Left = x => ({
+  map: g => Left(x),
+  fold: (f, g) => Left(f(x)),
+  inspect: () => `Left::(${x})`,
+});
+
+const fromNull = x => (x !== null ? Right(x) : Left(x));
+const tryCatch = f => {
+  try {
+    Right(f());
+  } catch (err) {
+    Left(err);
+  }
+};
+
+const { fromNull, Right, Left, tryCatch } = Either();
+
+const tryer = () => tryCatch(() => 10 > 9).map(x => x);
+tryer(); // ?
+// tryCatch(() => 10 > 9); // ?
+const fn = () => !(10 > 9);
+
+// ?
+
+// ?
+// ?
+// ?
+// ?
+
+// .map(x => x) //?
+
+Right(10)
+  .map(x => x * 2) // ?
+  .fold(
+    x => x,
+    y => y,
+  ); // ?
+
+Left(10)
+  .map(x => x * 2)
+  .fold(err => err);
+
+// ?
 
 const Box = f => ({
   map: g => Box(f(g)),
