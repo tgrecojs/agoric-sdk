@@ -36,6 +36,7 @@ import { makeVaultManager } from './vaultManager.js';
 import { makeLiquidationStrategy } from './liquidateMinimum.js';
 import { makeMakeCollectFeesInvitation } from './collectRewardFees.js';
 import { makeVaultParamManager, makeElectorateParamManager } from './params.js';
+import { Either, Endo, FnT, Reader, Task, TaskT } from '../utils/types.js';
 
 const { details: X } = assert;
 
@@ -75,6 +76,9 @@ export const start = async (zcf, privateArgs) => {
     main: { [CONTRACT_ELECTORATE]: electorateParam },
     loanTimingParams,
   } = zcf.getTerms();
+
+  const StartM = Reader.of(zcf.getTerms());
+  console.log({ StartM });
 
   /** @type {Promise<GovernorPublic>} */
   const governorPublic = E(zcf.getZoeService()).getPublicFacet(electionManager);
@@ -172,6 +176,7 @@ export const start = async (zcf, privateArgs) => {
 
   /** Make a loan in the vaultManager based on the collateral type. */
   const makeLoanInvitation = () => {
+    console.log({ StartM, runIt: StartM.run(x => x) });
     /** @param {ZCFSeat} seat */
     const makeLoanHook = async seat => {
       assertProposalShape(seat, {
@@ -230,12 +235,53 @@ export const start = async (zcf, privateArgs) => {
     bootstrapZCFSeat.exit();
     const bootstrapPayment = E(bootstrapUserSeat).getPayout('Bootstrap');
 
+    const paymentReader = amt =>
+      Reader(amt).map(Endo).concat(Reader(bootstrapPayment));
+    const BootstrapState = paymentReader(bootstrapPayment);
     /**
      * @param {Amount=} expectedAmount - if provided, assert that the bootstrap
      * payment is at least the expected amount
      */
+
+    const setPayment = payload => state =>
+      payload.prefs ? { ...state, payment: payload.payment } : state;
+
+    const validateAmount = (
+      actualAmount,
+      expectedAmount,
+      text = `${bootstrapAmount} is not at least ${expectedAmount}`,
+    ) => assert(AmountMath.isGTE(actualAmount, bootstrapAmount), X`${text}`);
+    const contractState = { user: bootstrapUserSeat, amount: bootstrapAmount };
+    const validatePayment = payload => state =>
+      payload.email
+        ? {
+            ...state,
+            bootstrapPayment: validateAmount(state.amount, payload.expected),
+          }
+        : state;
+    const FnEither = FnT(Either);
+
+    const reducer = Reader(validatePayment)
+      .map(Endo)
+      .concat(Reader(setPayment).map(Endo));
+    const TaskEither = TaskT(Either);
+    const App = FnT(TaskEither);
+
+    const Fn = Reader;
+    const reducerM = Fn(validateAmount)
+      .map(Endo)
+      .concat(Fn(setPayment).map(Endo));
+
+    const paymentR = Reader(validatePayment)
+      .map(Endo)
+      .concat(Reader(setPayment).map(Endo));
     const getBootstrapPayment = expectedAmount => {
+      const safeGetBootstrap = FnT(Either);
+      const safeB = safeGetBootstrap(expectedAmount);
+
+      console.log({ safeGetBootstrap, safeB, bootstrapAmount });
       if (expectedAmount) {
+        console.log({ safeGetBootstrap, bootstrapAmount, expectedAmount });
         assert(
           AmountMath.isGTE(bootstrapAmount, expectedAmount),
           X`${bootstrapAmount} is not at least ${expectedAmount}`,

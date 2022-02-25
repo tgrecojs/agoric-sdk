@@ -245,6 +245,7 @@ export const makeVaultManager = (
     const { notifier } = await openLoan(seat);
     sortedVaultKits.addVaultKit(vaultKit, notifier);
 
+    console.log({ notifier, vaultKit });
     seat.exit();
 
     return harden({

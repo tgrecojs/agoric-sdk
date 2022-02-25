@@ -125,6 +125,12 @@ const makeBootstrap = (argv, cb, vatPowers) => async (vats, devices) => {
   };
   const votes = [0, 1, 1, 0, 0];
 
+  /**
+   * @typedef  {Object} ParamDescription - the public facet
+   * @property {string} parameterName parameterName being added
+   * @property {Brand} collateralBrand brand for underlying collateral
+   */
+
   const interestRateParam = {
     parameterName: INTEREST_RATE_KEY,
     collateralBrand,
