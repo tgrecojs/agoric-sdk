@@ -178,6 +178,7 @@ test('bootstrap payment - only minted once', async t => {
   const bootstrapPayment = E(
     E(creatorFacet).getCreatorFacet(),
   ).getBootstrapPayment();
+
   const issuers = { RUN: runIssuer };
 
   const claimedPayment = await E(issuers.RUN).claim(bootstrapPayment);
@@ -210,8 +211,6 @@ test('bootstrap payment - default value is 0n', async t => {
       committeeSize: 5,
     },
   );
-
-  console.log();
 
   const issuers = { RUN: runIssuer };
 

@@ -1,5 +1,3 @@
-import { List } from 'immutable-ext';
-
 // Definitions
 // ====================
 const Right = x => ({

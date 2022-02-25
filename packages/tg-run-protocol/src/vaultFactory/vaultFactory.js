@@ -31,23 +31,37 @@ import { makeRatioFromAmounts } from '@agoric/zoe/src/contractSupport/ratio.js';
 import { AmountMath } from '@agoric/ertp';
 import { Far } from '@endo/marshal';
 import { CONTRACT_ELECTORATE } from '@agoric/governance';
+
 import { makeVaultManager } from './vaultManager.js';
 import { makeLiquidationStrategy } from './liquidateMinimum.js';
 import { makeMakeCollectFeesInvitation } from './collectRewardFees.js';
 import { makeVaultParamManager, makeElectorateParamManager } from './params.js';
-import { Either, Endo, FnT, Reader, Task, TaskT } from '../utils/types.js';
-import {
-  COLLATERAL_BRAND,
-  compose,
-  getCurrentSeatAllocation,
-  getNatParamState,
-  getRatioParamState,
-  getParams,
-  lookupCollateralFns,
-} from './helpers';
-import { tryCatch, fromNullable } from './helpers/adts';
 
 const { details: X } = assert;
+
+const compose =
+  (...fns) =>
+  initial =>
+    fns.reduceRight((acc, fn) => fn(acc), initial);
+const pipe =
+  (...fns) =>
+  initial =>
+    fns.reduce((acc, fn) => fn(acc), initial);
+
+const handleParamNameFn =
+  ({ parameterName }) =>
+  fn =>
+    fn(parameterName);
+
+const getNat = o => handleParamNameFn(o)('getNat');
+const getRatio = o => handleParamNameFn(o)('getRatio');
+const getNatParamState = paramDesc => getNat(paramDesc);
+const getRatioParamState = paramDesc => getRatio(paramDesc);
+const getParams = x => x.getParams();
+const lookupProp = map => key => map.get(key);
+const COLLATERAL_BRAND = 'collateralBrand';
+const getCurrentSeatAllocation = seat => seat.getCurrentAllocation();
+const lookupCollateralFns = map => compose(lookupProp(map));
 
 /** @type {ContractStartFn} */
 export const start = async (zcf, privateArgs) => {
@@ -61,9 +75,6 @@ export const start = async (zcf, privateArgs) => {
     main: { [CONTRACT_ELECTORATE]: electorateParam },
     loanTimingParams,
   } = zcf.getTerms();
-
-  const StartM = Reader.of(zcf.getTerms());
-  console.log({ StartM });
 
   /** @type {Promise<GovernorPublic>} */
   const governorPublic = E(zcf.getZoeService()).getPublicFacet(electionManager);
@@ -118,20 +129,16 @@ export const start = async (zcf, privateArgs) => {
 
   /** @type { Store<Brand, VaultParamManager> } */
   const vaultParamManagers = makeScalarMap('brand');
-  console.log({ vaultParamManagers });
   const getCollateralBrandFromMap = o =>
     lookupCollateralFns(vaultParamManagers)(o[COLLATERAL_BRAND]);
 
-  const handleAssert = assertFn => typeof assertFn === 'undefined';
+  const getGovernedParams = compose(getParams, getCollateralBrandFromMap);
 
   /** @type {AddVaultType} */
   const addVaultType = async (collateralIssuer, collateralKeyword, rates) => {
     await zcf.saveIssuer(collateralIssuer, collateralKeyword);
     const collateralBrand = zcf.getBrandForIssuer(collateralIssuer);
     // We create only one vault per collateralType.
-    console.log({
-      testAssert: handleAssert(assert(2 + 2 === 4, X`2 + 2 should equal 4`)),
-    });
     assert(
       !collateralTypes.has(collateralBrand),
       `Collateral brand ${collateralBrand} has already been added`,
@@ -163,69 +170,30 @@ export const start = async (zcf, privateArgs) => {
     return vm;
   };
 
-  const handleAssertProposal = proposal => seat =>
-    assertProposalShape(seat, proposal);
-
-  const handleLoanProposalShape = handleAssertProposal({
-    give: { Collateral: null },
-    want: { RUN: null },
-  });
-
-  const view = (lens, store) => lens.view(store);
-  const set = (lens, value, store) => lens.set(value, store);
-
-  // A function which takes a prop, and returns naive // lens accessors for that prop.
-
-  const lensProp = prop => ({
-    view: store => store[prop],
-    // This is very naive, because it only works for objects:
-    set: (value, store) => ({ ...store, [prop]: value }),
-  });
-
-  const giveLens = lensProp('give');
-  const collateralLens = lensProp('Collateral');
-
-  const viewGive = ({ getProposal }) => view(giveLens, getProposal());
-
   /** Make a loan in the vaultManager based on the collateral type. */
   const makeLoanInvitation = () => {
-    console.log({ StartM, runIt: StartM.run(x => x) });
     /** @param {ZCFSeat} seat */
     const makeLoanHook = async seat => {
-      fromNullable(!handleAssert(handleLoanProposalShape(seat)))
-        .map(x => x)
-        .fold(
-          x => '',
-          y => y,
-        );
-      const LoanM = Pred(x => handleAssert(handleLoanProposalShape(x)))
-        .contramap(x => {
-          console.log({ x });
-          return x;
-        })
-        .run(seat);
-      console.log({ LoanM });
-
-      const boxed = tryCatch(() => handleLoanProposalShape(seat))
-        .map(() => view(collateralLens, viewGive(seat)))
-        .fold(
-          x => x,
-          x => collateralTypes.get(x.brand).makeLoanKit(seat),
-        );
-
-      handleLoanProposalShape(seat);
-      console.log({ boxed, inspect: boxed.inspect() });
-      const { brand: brandIn } = view(collateralLens, viewGive(seat));
+      assertProposalShape(seat, {
+        give: { Collateral: null },
+        want: { RUN: null },
+      });
+      const {
+        give: { Collateral: collateralAmount },
+      } = seat.getProposal();
+      const { brand: brandIn } = collateralAmount;
       assert(
         collateralTypes.has(brandIn),
         X`Not a supported collateral type ${brandIn}`,
       );
       /** @type {VaultManager} */
-      return collateralTypes.get(brandIn).makeLoanKit(seat);
+      const mgr = collateralTypes.get(brandIn);
+      return mgr.makeLoanKit(seat);
     };
 
     return zcf.makeInvitation(makeLoanHook, 'MakeLoan');
   };
+
   const getCollaterals = async () => {
     // should be collateralTypes.map((vm, brand) => ({
     return harden(
@@ -262,53 +230,12 @@ export const start = async (zcf, privateArgs) => {
     bootstrapZCFSeat.exit();
     const bootstrapPayment = E(bootstrapUserSeat).getPayout('Bootstrap');
 
-    const paymentReader = amt =>
-      Reader(amt).map(Endo).concat(Reader(bootstrapPayment));
-    const BootstrapState = paymentReader(bootstrapPayment);
     /**
      * @param {Amount=} expectedAmount - if provided, assert that the bootstrap
      * payment is at least the expected amount
      */
-
-    const setPayment = payload => state =>
-      payload.prefs ? { ...state, payment: payload.payment } : state;
-
-    const validateAmount = (
-      actualAmount,
-      expectedAmount,
-      text = `${bootstrapAmount} is not at least ${expectedAmount}`,
-    ) => assert(AmountMath.isGTE(actualAmount, bootstrapAmount), X`${text}`);
-    const contractState = { user: bootstrapUserSeat, amount: bootstrapAmount };
-    const validatePayment = payload => state =>
-      payload.email
-        ? {
-            ...state,
-            bootstrapPayment: validateAmount(state.amount, payload.expected),
-          }
-        : state;
-    const FnEither = FnT(Either);
-
-    const reducer = Reader(validatePayment)
-      .map(Endo)
-      .concat(Reader(setPayment).map(Endo));
-    const TaskEither = TaskT(Either);
-    const App = FnT(TaskEither);
-
-    const Fn = Reader;
-    const reducerM = Fn(validateAmount)
-      .map(Endo)
-      .concat(Fn(setPayment).map(Endo));
-
-    const paymentR = Reader(validatePayment)
-      .map(Endo)
-      .concat(Reader(setPayment).map(Endo));
     const getBootstrapPayment = expectedAmount => {
-      const safeGetBootstrap = FnT(Either);
-      const safeB = safeGetBootstrap(expectedAmount);
-
-      console.log({ safeGetBootstrap, safeB, bootstrapAmount });
       if (expectedAmount) {
-        console.log({ safeGetBootstrap, bootstrapAmount, expectedAmount });
         assert(
           AmountMath.isGTE(bootstrapAmount, expectedAmount),
           X`${bootstrapAmount} is not at least ${expectedAmount}`,
@@ -326,7 +253,7 @@ export const start = async (zcf, privateArgs) => {
     getRunIssuer: () => runIssuer,
     getNatParamState,
     getRatioParamState,
-    getGovernedParams: compose(getParams, getCollateralBrandFromMap),
+    getGovernedParams,
     getContractGovernor: () => governorPublic,
     getInvitationAmount: electorateParamManager.getInvitationAmount,
   });

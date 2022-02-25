@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: types.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: types.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// @ts-check
+
+/**
+ * @typedef  {Object} AutoswapLocal
+ * @property {(amount: Amount, brand: Brand) => Amount} getInputPrice
+ * @property {() => Invitation} makeSwapInvitation
+ */
+
+/**
+ * @typedef {Object} Collateral
+ * @property {Ratio} initialMargin
+ * @property {Ratio} liquidationMargin
+ * @property {Ratio} stabilityFee
+ * @property {Ratio} marketPrice
+ * @property {Ratio} interestRate
+ * @property {Brand} brand
+ */
+
+/**
+ * @typedef {Object} Rates
+ * @property {Ratio} initialMargin - minimum over-collateralization
+ * required to open a loan
+ * @property {Ratio} liquidationMargin - margin below which collateral will be
+ * liquidated to satisfy the debt.
+ * @property {Ratio} interestRate - annual interest rate charged on loans
+ * @property {Ratio} loanFee - The fee (in BasisPoints) charged when opening
+ * or increasing a loan.
+ */
+
+/**
+ * @callback AddVaultType
+ * @param {Issuer} collateralIssuer
+ * @param {Keyword} collateralKeyword
+ * @param {Rates} rates
+ * @returns {Promise&lt;VaultManager>}
+ */
+
+/**
+ * @typedef  {Object} VaultFactoryPublicFacet - the public facet
+ * @property {() => Promise&lt;Invitation>} makeLoanInvitation
+ * @property {() => Promise&lt;Array&lt;Collateral>>} getCollaterals
+ * @property {() => Issuer} getRunIssuer
+ * @property {(paramDescription: ParamDescription) => bigint} getNatParamState
+ * @property {(paramDescription: ParamDescription) => Ratio} getRatioParamState
+ * @property {() => Record&lt;Keyword, ParamShortDescription>} getGovernedParams
+ * @property {() => Promise&lt;GovernorPublic>} getContractGovernor
+ * @property {(name: string) => Amount} getInvitationAmount
+ */
+
+/**
+ * @typedef  {Object} VaultFactory - the creator facet
+ * @property {AddVaultType} addVaultType
+ * @property {() => Promise&lt;Array&lt;Collateral>>} getCollaterals
+ * @property {() => Allocation} getRewardAllocation,
+ * @property {() => Promise&lt;Payment>} getBootstrapPayment
+ * @property {() => Instance} getContractGovernor
+ * @property {() => Promise&lt;Invitation>} makeCollectFeesInvitation
+ */
+
+/**
+ * @typedef {Object} BaseUIState
+ * @property {Amount} locked Amount of Collateral locked
+ * @property {Amount} debt Amount of Loan (including accrued interest)
+ * @property {Ratio} collateralizationRatio
+ */
+
+/**
+ * @typedef {BaseUIState &amp; LiquidationUIMixin} UIState
+ * @typedef {Object} LiquidationUIMixin
+ * @property {Ratio} interestRate Annual interest rate charge
+ * @property {Ratio} liquidationRatio
+ * @property {boolean} liquidated boolean showing whether liquidation occurred
+ */
+
+/**
+ * @callback ReallocateReward
+ *
+ * Transfer the indicated amount to the vaultFactory's reward
+ * pool, taken from the `fromSeat`. Then reallocate over all the seat
+ * arguments and the rewardPoolSeat.
+ *
+ * @param {Amount} amount
+ * @param {ZCFSeat} fromSeat
+ * @param {ZCFSeat=} otherSeat
+ * @returns {void}
+ */
+
+/**
+ * @typedef {Object} GetVaultParams
+ * @property {() => Ratio} getLiquidationMargin
+ * @property {() => Ratio} getLoanFee
+ * @property {() => Promise&lt;PriceQuote>} getCollateralQuote
+ * @property {() => Ratio} getInitialMargin
+ * @property {() => Ratio} getInterestRate - The annual interest rate on a loan
+ * @property {() => RelativeTime} getChargingPeriod - The period (in seconds) at
+ *   which interest is charged to the loan.
+ * @property {() => RelativeTime} getRecordingPeriod - The period (in seconds)
+ *   at which interest is recorded to the loan.
+ */
+
+/**
+ * @typedef {Object} InnerVaultManagerBase
+ * @property {() => Brand} getCollateralBrand
+ * @property {ReallocateReward} reallocateReward
+ */
+
+/**
+ * @typedef {InnerVaultManagerBase &amp; GetVaultParams} InnerVaultManager
+ */
+
+/**
+ * @typedef {Object} VaultManagerBase
+ * @property {(seat: ZCFSeat) => Promise&lt;LoanKit>}  makeLoanKit
+ * @property {() => void} liquidateAll
+ */
+
+/**
+ * @typedef {VaultManagerBase &amp; GetVaultParams} VaultManager
+ */
+
+/**
+ * @typedef {Object} OpenLoanKit
+ * @property {Notifier&lt;UIState>} notifier
+ * @property {Promise&lt;PaymentPKeywordRecord>} collateralPayoutP
+ */
+
+/**
+ * @typedef {Object} BaseVault
+ * @property {() => Amount} getCollateralAmount
+ * @property {() => Amount} getDebtAmount
+ *
+ * @typedef {BaseVault &amp; VaultMixin} Vault
+ * @typedef {Object} VaultMixin
+ * @property {() => Promise&lt;Invitation>} makeAdjustBalancesInvitation
+ * @property {() => Promise&lt;Invitation>} makeCloseInvitation
+ * @property {() => ERef&lt;UserSeat>} getLiquidationSeat
+ * @property {() => Promise&lt;string>} getLiquidationPromise
+ */
+
+/**
+ * @typedef {Object} LineOfCreditKit
+ * @property {Notifier&lt;BaseUIState>} uiNotifier
+ * @property {BaseVault} vault
+ * @property {{
+ *    AdjustBalances: () => Promise&lt;Invitation>,
+ *    CloseVault: () => Promise&lt;Invitation>,
+ *  }} invitationMakers
+ */
+
+/**
+ * @typedef {Object} LoanKit
+ * @property {Vault} vault
+ * @property {Notifier&lt;UIState>} uiNotifier
+ */
+
+/**
+ * @typedef {Object} VaultKit
+ * @property {Vault} vault
+ * @property {(seat: ZCFSeat) => Promise&lt;OpenLoanKit>} openLoan
+ * @property {(timestamp: Timestamp) => Amount} accrueInterestAndAddToPool
+ * @property {ZCFSeat} vaultSeat
+ * @property {PromiseRecord&lt;string>} liquidationPromiseKit
+ * @property {ZCFSeat} liquidationZcfSeat
+ * @property {() => void} liquidating
+ * @property {(newDebt: Amount) => void} liquidated
+ */
+
+/**
+ * @typedef {Object} LoanTiming
+ * @property {RelativeTime} chargingPeriod
+ * @property {RelativeTime} recordingPeriod
+ */
+
+/**
+ * @typedef {Object} AMMFees
+ * @property {bigint} poolFee
+ * @property {bigint} protocolFee
+ */
+
+/**
+ * @typedef {Object} LiquidationStrategy
+ * @property {() => KeywordKeywordRecord} keywordMapping
+ * @property {(collateral: Amount, run: Amount) => Proposal} makeProposal
+ * @property {(runDebt: Amount) => Promise&lt;Invitation>} makeInvitation
+ */
+
+/**
+ * @typedef {Object} LiquidationCreatorFacet
+ * @property {(runDebt: Amount) => Promise&lt;Invitation>} makeDebtorInvitation
+ */
+
+/**
+ * @callback MakeLiquidationStrategy
+ * @param {LiquidationCreatorFacet} creatorFacet
+ * @returns {LiquidationStrategy}
+ */
+
+/**
+ * @typedef {Object} DebtStatus
+ * @property {Timestamp} latestInterestUpdate
+ * @property {Amount} interest
+ * @property {Amount} newDebt
+ */
+
+/**
+ * @callback Calculate
+ * @param {DebtStatus} debtStatus
+ * @param {Timestamp} currentTime
+ * @returns {DebtStatus}
+ */
+
+/**
+ * @typedef {Object} CalculatorKit
+ * @property {Calculate} calculate calculate new debt for charging periods up to
+ * the present.
+ * @property {Calculate} calculateReportingPeriod calculate new debt for
+ * reporting periods up to the present. If some charging periods have elapsed
+ * that don't constitute whole reporting periods, the time is not updated past
+ * them and interest is not accumulated for them.
+ */
+
+/**
+ * @typedef {Object} VaultParamManager
+ * @property {() => Record&lt;Keyword, ParamShortDescription> &amp; {
+ *  'InitialMargin': ParamRecord&lt;'ratio'> &amp; { value: Ratio },
+ *  'InterestRate': ParamRecord&lt;'ratio'> &amp; { value: Ratio },
+ *  'LiquidationMargin': ParamRecord&lt;'ratio'> &amp; { value: Ratio },
+ *  'LoanFee': ParamRecord&lt;'ratio'> &amp; { value: Ratio },
+ * }} getParams
+ * @property {(name: string) => bigint} getNat
+ * @property {(name: string) => Ratio} getRatio
+ * @property {(margin: Ratio) => void} updateInitialMargin
+ * @property {(margin: Ratio) => void} updateLiquidationMargin
+ * @property {(ratio: Ratio) => void} updateInterestRate
+ * @property {(ratio: Ratio) => void} updateLoanFee
+ */
+
+/**
+ * @callback GetGovernedVaultParams
+ * @returns {{
+ *  InitialMargin: ParamRecord&lt;'ratio'> &amp; { value: Ratio },
+ *  InterestRate: ParamRecord&lt;'ratio'> &amp; { value: Ratio },
+ *  LiquidationMargin: ParamRecord&lt;'ratio'> &amp; { value: Ratio },
+ *  LoanFee: ParamRecord&lt;'ratio'> &amp; { value: Ratio },
+ * }}
+ */
+
+/**
+ * @callback VaultFactoryLiquidate
+ * @param {ContractFacet} zcf
+ * @param {VaultKit} vaultKit
+ * @param {(losses: AmountKeywordRecord,
+ *             zcfSeat: ZCFSeat
+ *            ) => void} burnLosses
+ * @param {LiquidationStrategy} strategy
+ * @param {Brand} collateralBrand
+ */
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3><a href="global.html">Global</a></h3>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a> on Tue Feb 22 2022 19:43:05 GMT-0300 (Brasilia Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
