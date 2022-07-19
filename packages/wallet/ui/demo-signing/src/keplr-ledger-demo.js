@@ -21,6 +21,23 @@ import {
   makeMessagingSigner,
 } from './messagingKey.js';
 
+const safeHtmlInputs = expected => actual =>
+  Object.getPrototypeOf(actual) === expected;
+
+// helpers:
+const getProp = prop => obj => obj[prop];
+const getPrototype = getProp('prototype');
+const buttonEl = getPrototype(HTMLButtonElement);
+const inputEl = getPrototype(HTMLInputElement);
+const textAreaEl = getPrototype(HTMLTextAreaElement);
+const selectEl = getPrototype(HTMLSelectElement);
+
+const safeBtn = safeHtmlInputs(buttonEl);
+const safeTextArea = safeHtmlInputs(textAreaEl);
+const safeSelectInput = safeHtmlInputs(selectEl);
+
+const equals = (x, y) => x === y;
+
 const { freeze } = Object;
 
 const check = {
@@ -37,32 +54,29 @@ const check = {
     return x;
   },
 
-  /** @type { (elt: unknown) => HTMLButtonElement } */
   theButton(elt) {
-    if (!(elt instanceof HTMLButtonElement)) {
+    if (!safeBtn(elt)) {
       throw Error('not Button');
     }
     return elt;
   },
 
-  /** @type { (elt: unknown) => HTMLInputElement } */
   theInput(elt) {
-    if (!(elt instanceof HTMLInputElement)) {
+    if (!equals(Object.getPrototypeOf(elt), inputEl)) {
       throw Error('not input');
     }
     return elt;
   },
 
-  /** @type { (elt: unknown) => HTMLTextAreaElement } */
   theTextArea(elt) {
-    if (!(elt instanceof HTMLTextAreaElement)) {
+    if (!safeTextArea(elt)) {
       throw Error('not input');
     }
     return elt;
   },
 
   theSelect(elt) {
-    if (!(elt instanceof HTMLSelectElement)) {
+    if (!safeSelectInput(elt)) {
       throw Error('not select');
     }
     return elt;
