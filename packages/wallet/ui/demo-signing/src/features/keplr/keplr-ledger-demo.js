@@ -318,7 +318,6 @@ const makeUI = document => {
   });
 };
 
-<<<<<<< HEAD:packages/wallet/ui/demo-signing/src/features/keplr/keplr-ledger-demo.js
 typeof window !== 'undefined' &&
   window.addEventListener('load', async _ev => {
     if (!('keplr' in window)) {
@@ -326,8 +325,7 @@ typeof window !== 'undefined' &&
       alert('Please install keplr extension');
     }
     // @ts-expect-error keplr is injected
-    const { keplr } = await window;
-    console.log({ window });
+    const { keplr } = window;
     const ui = makeUI(document);
 
     const s1 = await makeSigner(
@@ -336,94 +334,64 @@ typeof window !== 'undefined' &&
       SigningStargateClient.connectWithSigner,
     );
 
-    ui.onClick('#sign', async _bev =>
-      s1.sign(
-        ui.textValue('*[name="action"]'),
+    ui.onClick('#acceptOffer', async _bev =>
+      s1.acceptOffer(
+        ui.textValue('*[name="spendAction"]'),
         ui.inputValue('*[name="memo"]'),
       ),
     );
-=======
-window.addEventListener('load', async _ev => {
-  if (!('keplr' in window)) {
-    // eslint-disable-next-line no-alert
-    alert('Please install keplr extension');
-  }
-  // @ts-expect-error keplr is injected
-  const { keplr } = window;
-  const ui = makeUI(document);
-
-  const s1 = await makeSigner(
-    ui,
-    keplr,
-    SigningStargateClient.connectWithSigner,
-  );
-
-  ui.onClick('#acceptOffer', async _bev =>
-    s1.acceptOffer(
-      ui.textValue('*[name="spendAction"]'),
-      ui.inputValue('*[name="memo"]'),
-    ),
-  );
->>>>>>> a921199bf450530ab34e898d0a8e9c83d4974150:packages/wallet/ui/demo-signing/src/keplr-ledger-demo.js
 
     const s2 = await makeMessagingSigner({
       localStorage: window.localStorage,
     });
     ui.setValue('*[name="messagingAccount"]', s2.address);
 
-<<<<<<< HEAD:packages/wallet/ui/demo-signing/src/features/keplr/keplr-ledger-demo.js
     ui.onClick('#makeMessagingAccount', async _bev =>
       s1.authorizeMessagingKey(s2.address, Date.now()),
     );
-  });
-=======
-  ui.onClick('#makeMessagingAccount', async _bev =>
-    s1.authorizeMessagingKey(s2.address, Date.now()),
-  );
 
-  const chainInfo = localChainInfo;
-  const lowPrivilegeClient = await SigningStargateClient.connectWithSigner(
-    chainInfo.rpc,
-    s2.wallet,
-    {
-      registry: aRegistry,
-    },
-  );
-  console.log({ lowPrivilegeClient });
-  console.log('low priv signer accounts', await s2.wallet.getAccounts());
-
-  ui.onClick('#sendMessages', async _bev => {
-    const { address } = s2;
-    const { accountNumber, sequence } = await lowPrivilegeClient.getSequence(
-      address,
-    );
-    console.log({ accountNumber, sequence });
-
-    const act1 = {
-      typeUrl: '/agoric.swingset.MsgWalletAction',
-      value: {
-        owner: toBase64(toAccAddress(s1.address)),
-        action: ui.inputValue('*[name="action"]'),
+    const chainInfo = localChainInfo;
+    const lowPrivilegeClient = await SigningStargateClient.connectWithSigner(
+      chainInfo.rpc,
+      s2.wallet,
+      {
+        registry: aRegistry,
       },
-    };
-    const msgs = [makeExecMessage(s2.address, [act1])];
-    const memo = ui.inputValue('*[name="memo"]');
-
-    const { coinMinimalDenom: denom } = stableCurrency;
-    const fee = {
-      amount: [{ amount: '0', denom }],
-      gas: '100000', // TODO: estimate gas?
-    };
-
-    console.log('sign', { address, msgs, fee, memo });
-    const tx = await lowPrivilegeClient.signAndBroadcast(
-      address,
-      msgs,
-      fee,
-      memo,
     );
+    console.log({ lowPrivilegeClient });
+    console.log('low priv signer accounts', await s2.wallet.getAccounts());
 
-    console.log({ tx });
+    ui.onClick('#sendMessages', async _bev => {
+      const { address } = s2;
+      const { accountNumber, sequence } = await lowPrivilegeClient.getSequence(
+        address,
+      );
+      console.log({ accountNumber, sequence });
+
+      const act1 = {
+        typeUrl: '/agoric.swingset.MsgWalletAction',
+        value: {
+          owner: toBase64(toAccAddress(s1.address)),
+          action: ui.inputValue('*[name="action"]'),
+        },
+      };
+      const msgs = [makeExecMessage(s2.address, [act1])];
+      const memo = ui.inputValue('*[name="memo"]');
+
+      const { coinMinimalDenom: denom } = stableCurrency;
+      const fee = {
+        amount: [{ amount: '0', denom }],
+        gas: '100000', // TODO: estimate gas?
+      };
+
+      console.log('sign', { address, msgs, fee, memo });
+      const tx = await lowPrivilegeClient.signAndBroadcast(
+        address,
+        msgs,
+        fee,
+        memo,
+      );
+
+      console.log({ tx });
+    });
   });
-});
->>>>>>> a921199bf450530ab34e898d0a8e9c83d4974150:packages/wallet/ui/demo-signing/src/keplr-ledger-demo.js

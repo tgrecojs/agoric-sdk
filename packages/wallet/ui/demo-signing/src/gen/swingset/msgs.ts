@@ -66,11 +66,14 @@ export interface MsgInstallBundle {
  */
 export interface MsgInstallBundleResponse {}
 
-const baseMsgDeliverInbound: object = {
-  messages: '',
-  nums: Long.UZERO,
-  ack: Long.UZERO,
-};
+function createBaseMsgDeliverInbound(): MsgDeliverInbound {
+  return {
+    messages: [],
+    nums: [],
+    ack: Long.UZERO,
+    submitter: new Uint8Array(),
+  };
+}
 
 export const MsgDeliverInbound = {
   encode(
@@ -97,10 +100,7 @@ export const MsgDeliverInbound = {
   decode(input: _m0.Reader | Uint8Array, length?: number): MsgDeliverInbound {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgDeliverInbound } as MsgDeliverInbound;
-    message.messages = [];
-    message.nums = [];
-    message.submitter = new Uint8Array();
+    const message = createBaseMsgDeliverInbound();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -132,29 +132,18 @@ export const MsgDeliverInbound = {
   },
 
   fromJSON(object: any): MsgDeliverInbound {
-    const message = { ...baseMsgDeliverInbound } as MsgDeliverInbound;
-    message.messages = [];
-    message.nums = [];
-    message.submitter = new Uint8Array();
-    if (object.messages !== undefined && object.messages !== null) {
-      for (const e of object.messages) {
-        message.messages.push(String(e));
-      }
-    }
-    if (object.nums !== undefined && object.nums !== null) {
-      for (const e of object.nums) {
-        message.nums.push(Long.fromString(e));
-      }
-    }
-    if (object.ack !== undefined && object.ack !== null) {
-      message.ack = Long.fromString(object.ack);
-    } else {
-      message.ack = Long.UZERO;
-    }
-    if (object.submitter !== undefined && object.submitter !== null) {
-      message.submitter = bytesFromBase64(object.submitter);
-    }
-    return message;
+    return {
+      messages: Array.isArray(object?.messages)
+        ? object.messages.map((e: any) => String(e))
+        : [],
+      nums: Array.isArray(object?.nums)
+        ? object.nums.map((e: any) => Long.fromValue(e))
+        : [],
+      ack: isSet(object.ack) ? Long.fromValue(object.ack) : Long.UZERO,
+      submitter: isSet(object.submitter)
+        ? bytesFromBase64(object.submitter)
+        : new Uint8Array(),
+    };
   },
 
   toJSON(message: MsgDeliverInbound): unknown {
@@ -178,35 +167,24 @@ export const MsgDeliverInbound = {
     return obj;
   },
 
-  fromPartial(object: DeepPartial<MsgDeliverInbound>): MsgDeliverInbound {
-    const message = { ...baseMsgDeliverInbound } as MsgDeliverInbound;
-    message.messages = [];
-    message.nums = [];
-    if (object.messages !== undefined && object.messages !== null) {
-      for (const e of object.messages) {
-        message.messages.push(e);
-      }
-    }
-    if (object.nums !== undefined && object.nums !== null) {
-      for (const e of object.nums) {
-        message.nums.push(e);
-      }
-    }
-    if (object.ack !== undefined && object.ack !== null) {
-      message.ack = object.ack as Long;
-    } else {
-      message.ack = Long.UZERO;
-    }
-    if (object.submitter !== undefined && object.submitter !== null) {
-      message.submitter = object.submitter;
-    } else {
-      message.submitter = new Uint8Array();
-    }
+  fromPartial<I extends Exact<DeepPartial<MsgDeliverInbound>, I>>(
+    object: I,
+  ): MsgDeliverInbound {
+    const message = createBaseMsgDeliverInbound();
+    message.messages = object.messages?.map(e => e) || [];
+    message.nums = object.nums?.map(e => Long.fromValue(e)) || [];
+    message.ack =
+      object.ack !== undefined && object.ack !== null
+        ? Long.fromValue(object.ack)
+        : Long.UZERO;
+    message.submitter = object.submitter ?? new Uint8Array();
     return message;
   },
 };
 
-const baseMsgDeliverInboundResponse: object = {};
+function createBaseMsgDeliverInboundResponse(): MsgDeliverInboundResponse {
+  return {};
+}
 
 export const MsgDeliverInboundResponse = {
   encode(
@@ -222,9 +200,7 @@ export const MsgDeliverInboundResponse = {
   ): MsgDeliverInboundResponse {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = {
-      ...baseMsgDeliverInboundResponse,
-    } as MsgDeliverInboundResponse;
+    const message = createBaseMsgDeliverInboundResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -237,10 +213,7 @@ export const MsgDeliverInboundResponse = {
   },
 
   fromJSON(_: any): MsgDeliverInboundResponse {
-    const message = {
-      ...baseMsgDeliverInboundResponse,
-    } as MsgDeliverInboundResponse;
-    return message;
+    return {};
   },
 
   toJSON(_: MsgDeliverInboundResponse): unknown {
@@ -248,17 +221,17 @@ export const MsgDeliverInboundResponse = {
     return obj;
   },
 
-  fromPartial(
-    _: DeepPartial<MsgDeliverInboundResponse>,
+  fromPartial<I extends Exact<DeepPartial<MsgDeliverInboundResponse>, I>>(
+    _: I,
   ): MsgDeliverInboundResponse {
-    const message = {
-      ...baseMsgDeliverInboundResponse,
-    } as MsgDeliverInboundResponse;
+    const message = createBaseMsgDeliverInboundResponse();
     return message;
   },
 };
 
-const baseMsgWalletAction: object = { action: '' };
+function createBaseMsgWalletAction(): MsgWalletAction {
+  return { owner: new Uint8Array(), action: '' };
+}
 
 export const MsgWalletAction = {
   encode(
@@ -277,8 +250,7 @@ export const MsgWalletAction = {
   decode(input: _m0.Reader | Uint8Array, length?: number): MsgWalletAction {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgWalletAction } as MsgWalletAction;
-    message.owner = new Uint8Array();
+    const message = createBaseMsgWalletAction();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -297,17 +269,12 @@ export const MsgWalletAction = {
   },
 
   fromJSON(object: any): MsgWalletAction {
-    const message = { ...baseMsgWalletAction } as MsgWalletAction;
-    message.owner = new Uint8Array();
-    if (object.owner !== undefined && object.owner !== null) {
-      message.owner = bytesFromBase64(object.owner);
-    }
-    if (object.action !== undefined && object.action !== null) {
-      message.action = String(object.action);
-    } else {
-      message.action = '';
-    }
-    return message;
+    return {
+      owner: isSet(object.owner)
+        ? bytesFromBase64(object.owner)
+        : new Uint8Array(),
+      action: isSet(object.action) ? String(object.action) : '',
+    };
   },
 
   toJSON(message: MsgWalletAction): unknown {
@@ -320,23 +287,19 @@ export const MsgWalletAction = {
     return obj;
   },
 
-  fromPartial(object: DeepPartial<MsgWalletAction>): MsgWalletAction {
-    const message = { ...baseMsgWalletAction } as MsgWalletAction;
-    if (object.owner !== undefined && object.owner !== null) {
-      message.owner = object.owner;
-    } else {
-      message.owner = new Uint8Array();
-    }
-    if (object.action !== undefined && object.action !== null) {
-      message.action = object.action;
-    } else {
-      message.action = '';
-    }
+  fromPartial<I extends Exact<DeepPartial<MsgWalletAction>, I>>(
+    object: I,
+  ): MsgWalletAction {
+    const message = createBaseMsgWalletAction();
+    message.owner = object.owner ?? new Uint8Array();
+    message.action = object.action ?? '';
     return message;
   },
 };
 
-const baseMsgWalletActionResponse: object = {};
+function createBaseMsgWalletActionResponse(): MsgWalletActionResponse {
+  return {};
+}
 
 export const MsgWalletActionResponse = {
   encode(
@@ -352,9 +315,7 @@ export const MsgWalletActionResponse = {
   ): MsgWalletActionResponse {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = {
-      ...baseMsgWalletActionResponse,
-    } as MsgWalletActionResponse;
+    const message = createBaseMsgWalletActionResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -367,10 +328,7 @@ export const MsgWalletActionResponse = {
   },
 
   fromJSON(_: any): MsgWalletActionResponse {
-    const message = {
-      ...baseMsgWalletActionResponse,
-    } as MsgWalletActionResponse;
-    return message;
+    return {};
   },
 
   toJSON(_: MsgWalletActionResponse): unknown {
@@ -378,17 +336,17 @@ export const MsgWalletActionResponse = {
     return obj;
   },
 
-  fromPartial(
-    _: DeepPartial<MsgWalletActionResponse>,
+  fromPartial<I extends Exact<DeepPartial<MsgWalletActionResponse>, I>>(
+    _: I,
   ): MsgWalletActionResponse {
-    const message = {
-      ...baseMsgWalletActionResponse,
-    } as MsgWalletActionResponse;
+    const message = createBaseMsgWalletActionResponse();
     return message;
   },
 };
 
-const baseMsgWalletSpendAction: object = { spendAction: '' };
+function createBaseMsgWalletSpendAction(): MsgWalletSpendAction {
+  return { owner: new Uint8Array(), spendAction: '' };
+}
 
 export const MsgWalletSpendAction = {
   encode(
@@ -410,8 +368,7 @@ export const MsgWalletSpendAction = {
   ): MsgWalletSpendAction {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgWalletSpendAction } as MsgWalletSpendAction;
-    message.owner = new Uint8Array();
+    const message = createBaseMsgWalletSpendAction();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -430,17 +387,12 @@ export const MsgWalletSpendAction = {
   },
 
   fromJSON(object: any): MsgWalletSpendAction {
-    const message = { ...baseMsgWalletSpendAction } as MsgWalletSpendAction;
-    message.owner = new Uint8Array();
-    if (object.owner !== undefined && object.owner !== null) {
-      message.owner = bytesFromBase64(object.owner);
-    }
-    if (object.spendAction !== undefined && object.spendAction !== null) {
-      message.spendAction = String(object.spendAction);
-    } else {
-      message.spendAction = '';
-    }
-    return message;
+    return {
+      owner: isSet(object.owner)
+        ? bytesFromBase64(object.owner)
+        : new Uint8Array(),
+      spendAction: isSet(object.spendAction) ? String(object.spendAction) : '',
+    };
   },
 
   toJSON(message: MsgWalletSpendAction): unknown {
@@ -454,23 +406,19 @@ export const MsgWalletSpendAction = {
     return obj;
   },
 
-  fromPartial(object: DeepPartial<MsgWalletSpendAction>): MsgWalletSpendAction {
-    const message = { ...baseMsgWalletSpendAction } as MsgWalletSpendAction;
-    if (object.owner !== undefined && object.owner !== null) {
-      message.owner = object.owner;
-    } else {
-      message.owner = new Uint8Array();
-    }
-    if (object.spendAction !== undefined && object.spendAction !== null) {
-      message.spendAction = object.spendAction;
-    } else {
-      message.spendAction = '';
-    }
+  fromPartial<I extends Exact<DeepPartial<MsgWalletSpendAction>, I>>(
+    object: I,
+  ): MsgWalletSpendAction {
+    const message = createBaseMsgWalletSpendAction();
+    message.owner = object.owner ?? new Uint8Array();
+    message.spendAction = object.spendAction ?? '';
     return message;
   },
 };
 
-const baseMsgWalletSpendActionResponse: object = {};
+function createBaseMsgWalletSpendActionResponse(): MsgWalletSpendActionResponse {
+  return {};
+}
 
 export const MsgWalletSpendActionResponse = {
   encode(
@@ -486,9 +434,7 @@ export const MsgWalletSpendActionResponse = {
   ): MsgWalletSpendActionResponse {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = {
-      ...baseMsgWalletSpendActionResponse,
-    } as MsgWalletSpendActionResponse;
+    const message = createBaseMsgWalletSpendActionResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -501,10 +447,7 @@ export const MsgWalletSpendActionResponse = {
   },
 
   fromJSON(_: any): MsgWalletSpendActionResponse {
-    const message = {
-      ...baseMsgWalletSpendActionResponse,
-    } as MsgWalletSpendActionResponse;
-    return message;
+    return {};
   },
 
   toJSON(_: MsgWalletSpendActionResponse): unknown {
@@ -512,17 +455,22 @@ export const MsgWalletSpendActionResponse = {
     return obj;
   },
 
-  fromPartial(
-    _: DeepPartial<MsgWalletSpendActionResponse>,
+  fromPartial<I extends Exact<DeepPartial<MsgWalletSpendActionResponse>, I>>(
+    _: I,
   ): MsgWalletSpendActionResponse {
-    const message = {
-      ...baseMsgWalletSpendActionResponse,
-    } as MsgWalletSpendActionResponse;
+    const message = createBaseMsgWalletSpendActionResponse();
     return message;
   },
 };
 
-const baseMsgProvision: object = { nickname: '', powerFlags: '' };
+function createBaseMsgProvision(): MsgProvision {
+  return {
+    nickname: '',
+    address: new Uint8Array(),
+    powerFlags: [],
+    submitter: new Uint8Array(),
+  };
+}
 
 export const MsgProvision = {
   encode(
@@ -547,10 +495,7 @@ export const MsgProvision = {
   decode(input: _m0.Reader | Uint8Array, length?: number): MsgProvision {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgProvision } as MsgProvision;
-    message.powerFlags = [];
-    message.address = new Uint8Array();
-    message.submitter = new Uint8Array();
+    const message = createBaseMsgProvision();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -575,27 +520,18 @@ export const MsgProvision = {
   },
 
   fromJSON(object: any): MsgProvision {
-    const message = { ...baseMsgProvision } as MsgProvision;
-    message.powerFlags = [];
-    message.address = new Uint8Array();
-    message.submitter = new Uint8Array();
-    if (object.nickname !== undefined && object.nickname !== null) {
-      message.nickname = String(object.nickname);
-    } else {
-      message.nickname = '';
-    }
-    if (object.address !== undefined && object.address !== null) {
-      message.address = bytesFromBase64(object.address);
-    }
-    if (object.powerFlags !== undefined && object.powerFlags !== null) {
-      for (const e of object.powerFlags) {
-        message.powerFlags.push(String(e));
-      }
-    }
-    if (object.submitter !== undefined && object.submitter !== null) {
-      message.submitter = bytesFromBase64(object.submitter);
-    }
-    return message;
+    return {
+      nickname: isSet(object.nickname) ? String(object.nickname) : '',
+      address: isSet(object.address)
+        ? bytesFromBase64(object.address)
+        : new Uint8Array(),
+      powerFlags: Array.isArray(object?.powerFlags)
+        ? object.powerFlags.map((e: any) => String(e))
+        : [],
+      submitter: isSet(object.submitter)
+        ? bytesFromBase64(object.submitter)
+        : new Uint8Array(),
+    };
   },
 
   toJSON(message: MsgProvision): unknown {
@@ -617,34 +553,21 @@ export const MsgProvision = {
     return obj;
   },
 
-  fromPartial(object: DeepPartial<MsgProvision>): MsgProvision {
-    const message = { ...baseMsgProvision } as MsgProvision;
-    message.powerFlags = [];
-    if (object.nickname !== undefined && object.nickname !== null) {
-      message.nickname = object.nickname;
-    } else {
-      message.nickname = '';
-    }
-    if (object.address !== undefined && object.address !== null) {
-      message.address = object.address;
-    } else {
-      message.address = new Uint8Array();
-    }
-    if (object.powerFlags !== undefined && object.powerFlags !== null) {
-      for (const e of object.powerFlags) {
-        message.powerFlags.push(e);
-      }
-    }
-    if (object.submitter !== undefined && object.submitter !== null) {
-      message.submitter = object.submitter;
-    } else {
-      message.submitter = new Uint8Array();
-    }
+  fromPartial<I extends Exact<DeepPartial<MsgProvision>, I>>(
+    object: I,
+  ): MsgProvision {
+    const message = createBaseMsgProvision();
+    message.nickname = object.nickname ?? '';
+    message.address = object.address ?? new Uint8Array();
+    message.powerFlags = object.powerFlags?.map(e => e) || [];
+    message.submitter = object.submitter ?? new Uint8Array();
     return message;
   },
 };
 
-const baseMsgProvisionResponse: object = {};
+function createBaseMsgProvisionResponse(): MsgProvisionResponse {
+  return {};
+}
 
 export const MsgProvisionResponse = {
   encode(
@@ -660,7 +583,7 @@ export const MsgProvisionResponse = {
   ): MsgProvisionResponse {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgProvisionResponse } as MsgProvisionResponse;
+    const message = createBaseMsgProvisionResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -673,8 +596,7 @@ export const MsgProvisionResponse = {
   },
 
   fromJSON(_: any): MsgProvisionResponse {
-    const message = { ...baseMsgProvisionResponse } as MsgProvisionResponse;
-    return message;
+    return {};
   },
 
   toJSON(_: MsgProvisionResponse): unknown {
@@ -682,13 +604,17 @@ export const MsgProvisionResponse = {
     return obj;
   },
 
-  fromPartial(_: DeepPartial<MsgProvisionResponse>): MsgProvisionResponse {
-    const message = { ...baseMsgProvisionResponse } as MsgProvisionResponse;
+  fromPartial<I extends Exact<DeepPartial<MsgProvisionResponse>, I>>(
+    _: I,
+  ): MsgProvisionResponse {
+    const message = createBaseMsgProvisionResponse();
     return message;
   },
 };
 
-const baseMsgInstallBundle: object = { bundle: '' };
+function createBaseMsgInstallBundle(): MsgInstallBundle {
+  return { bundle: '', submitter: new Uint8Array() };
+}
 
 export const MsgInstallBundle = {
   encode(
@@ -707,8 +633,7 @@ export const MsgInstallBundle = {
   decode(input: _m0.Reader | Uint8Array, length?: number): MsgInstallBundle {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = { ...baseMsgInstallBundle } as MsgInstallBundle;
-    message.submitter = new Uint8Array();
+    const message = createBaseMsgInstallBundle();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -727,17 +652,12 @@ export const MsgInstallBundle = {
   },
 
   fromJSON(object: any): MsgInstallBundle {
-    const message = { ...baseMsgInstallBundle } as MsgInstallBundle;
-    message.submitter = new Uint8Array();
-    if (object.bundle !== undefined && object.bundle !== null) {
-      message.bundle = String(object.bundle);
-    } else {
-      message.bundle = '';
-    }
-    if (object.submitter !== undefined && object.submitter !== null) {
-      message.submitter = bytesFromBase64(object.submitter);
-    }
-    return message;
+    return {
+      bundle: isSet(object.bundle) ? String(object.bundle) : '',
+      submitter: isSet(object.submitter)
+        ? bytesFromBase64(object.submitter)
+        : new Uint8Array(),
+    };
   },
 
   toJSON(message: MsgInstallBundle): unknown {
@@ -750,23 +670,19 @@ export const MsgInstallBundle = {
     return obj;
   },
 
-  fromPartial(object: DeepPartial<MsgInstallBundle>): MsgInstallBundle {
-    const message = { ...baseMsgInstallBundle } as MsgInstallBundle;
-    if (object.bundle !== undefined && object.bundle !== null) {
-      message.bundle = object.bundle;
-    } else {
-      message.bundle = '';
-    }
-    if (object.submitter !== undefined && object.submitter !== null) {
-      message.submitter = object.submitter;
-    } else {
-      message.submitter = new Uint8Array();
-    }
+  fromPartial<I extends Exact<DeepPartial<MsgInstallBundle>, I>>(
+    object: I,
+  ): MsgInstallBundle {
+    const message = createBaseMsgInstallBundle();
+    message.bundle = object.bundle ?? '';
+    message.submitter = object.submitter ?? new Uint8Array();
     return message;
   },
 };
 
-const baseMsgInstallBundleResponse: object = {};
+function createBaseMsgInstallBundleResponse(): MsgInstallBundleResponse {
+  return {};
+}
 
 export const MsgInstallBundleResponse = {
   encode(
@@ -782,9 +698,7 @@ export const MsgInstallBundleResponse = {
   ): MsgInstallBundleResponse {
     const reader = input instanceof _m0.Reader ? input : new _m0.Reader(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = {
-      ...baseMsgInstallBundleResponse,
-    } as MsgInstallBundleResponse;
+    const message = createBaseMsgInstallBundleResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -797,10 +711,7 @@ export const MsgInstallBundleResponse = {
   },
 
   fromJSON(_: any): MsgInstallBundleResponse {
-    const message = {
-      ...baseMsgInstallBundleResponse,
-    } as MsgInstallBundleResponse;
-    return message;
+    return {};
   },
 
   toJSON(_: MsgInstallBundleResponse): unknown {
@@ -808,12 +719,10 @@ export const MsgInstallBundleResponse = {
     return obj;
   },
 
-  fromPartial(
-    _: DeepPartial<MsgInstallBundleResponse>,
+  fromPartial<I extends Exact<DeepPartial<MsgInstallBundleResponse>, I>>(
+    _: I,
   ): MsgInstallBundleResponse {
-    const message = {
-      ...baseMsgInstallBundleResponse,
-    } as MsgInstallBundleResponse;
+    const message = createBaseMsgInstallBundleResponse();
     return message;
   },
 };
@@ -917,6 +826,7 @@ interface Rpc {
 
 declare var self: any | undefined;
 declare var window: any | undefined;
+declare var global: any | undefined;
 var globalThis: any = (() => {
   if (typeof globalThis !== 'undefined') return globalThis;
   if (typeof self !== 'undefined') return self;
@@ -942,9 +852,9 @@ const btoa: (bin: string) => string =
   (bin => globalThis.Buffer.from(bin, 'binary').toString('base64'));
 function base64FromBytes(arr: Uint8Array): string {
   const bin: string[] = [];
-  for (const byte of arr) {
+  arr.forEach(byte => {
     bin.push(String.fromCharCode(byte));
-  }
+  });
   return btoa(bin.join(''));
 }
 
@@ -955,10 +865,12 @@ type Builtin =
   | string
   | number
   | boolean
-  | undefined
-  | Long;
+  | undefined;
+
 export type DeepPartial<T> = T extends Builtin
   ? T
+  : T extends Long
+  ? string | number | Long
   : T extends Array<infer U>
   ? Array<DeepPartial<U>>
   : T extends ReadonlyArray<infer U>
@@ -967,7 +879,19 @@ export type DeepPartial<T> = T extends Builtin
   ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
 
+type KeysOfUnion<T> = T extends T ? keyof T : never;
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
+  : P & { [K in keyof P]: Exact<P[K], I[K]> } & Record<
+        Exclude<keyof I, KeysOfUnion<P>>,
+        never
+      >;
+
 if (_m0.util.Long !== Long) {
   _m0.util.Long = Long as any;
   _m0.configure();
+}
+
+function isSet(value: any): boolean {
+  return value !== null && value !== undefined;
 }

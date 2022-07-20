@@ -647,6 +647,7 @@ export const MsgInstallBundleResponse = {
     },
 };
 export class MsgClientImpl {
+    rpc;
     constructor(rpc) {
         this.rpc = rpc;
         this.InstallBundle = this.InstallBundle.bind(this);
