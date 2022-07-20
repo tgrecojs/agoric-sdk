@@ -6,7 +6,7 @@ import {
 } from '@cosmjs/stargate';
 import { fromBech32, toBech32, fromBase64, toBase64 } from '@cosmjs/encoding';
 import { DirectSecp256k1Wallet, Registry } from '@cosmjs/proto-signing';
-import { html, render } from 'lit-html';
+import { IO, Maybe, Either, IOHelpers, AsyncEither } from 'monio';
 import {
   AGORIC_COIN_TYPE,
   COSMOS_COIN_TYPE,
@@ -14,14 +14,66 @@ import {
   stableCurrency,
   bech32Config,
   SwingsetMsgs,
-} from './chainInfo.js';
-import { MsgWalletAction } from './gen/swingset/msgs';
+} from '../../chainInfo.js';
+import { MsgWalletAction } from '../../gen/swingset/msgs.js';
 import {
   makeGrantWalletActionMessage,
   makeMessagingSigner,
-} from './messagingKey.js';
+} from '../../messagingKey.js';
+
+const trace = label => value => {
+  console.log(`${label}::`, value);
+  return value;
+};
+const safeHtmlInputs = expected => actual =>
+  Object.getPrototypeOf(actual) === expected;
+
+// helpers:
+const getProp = prop => obj => obj[prop];
+const getPrototype = getProp('prototype');
+const buttonEl = x => getPrototype(HTMLButtonElement)(x);
+const inputEl = x => getPrototype(HTMLInputElement)(x);
+const textAreaEl = x => getPrototype(HTMLTextAreaElement)(x);
+const selectEl = x => getPrototype(HTMLSelectElement)(x);
+
+const safeBtn = safeHtmlInputs(buttonEl);
+const safeTextArea = safeHtmlInputs(textAreaEl);
+const safeInput = safeHtmlInputs(inputEl);
+const safeSelectInput = safeHtmlInputs(selectEl);
+
+const equals = (x, y) => x === y;
 
 const { freeze } = Object;
+const { Just, Nothing } = Maybe;
+const { Left, Right } = Either;
+const { do: doIO } = IO;
+const getValue = getProp('value');
+
+const tryCatch = fn => {
+  try {
+    return Right(fn());
+  } catch (error) {
+    return Left(error);
+  }
+};
+const isNotNull = x => ctx => !x ? new Error(`null/undefined $${ctx}`) : x;
+const safeNullCheck = (x, y) =>
+  tryCatch(() =>
+    isNotNull(x)(y).fold(
+      err => new Error(`null/undefined $${err}`),
+      el => getValue(el),
+    ),
+  );
+
+const handleErrorMessage =
+  (errorMsg = 'default error') =>
+  (uiMessage = '') =>
+    new Error(errorMsg.concat(' ', uiMessage));
+const id = x => x;
+const { log } = IOHelpers;
+const safeBtnCheck = x => tryCatch(() => safeBtn(x));
+const safeInputCheck = x => tryCatch(() => safeInput(x));
+const safeTextAreaCheck = x => tryCatch(() => safeTextArea(x));
 
 const check = {
   /**
@@ -31,41 +83,43 @@ const check = {
    * @template T
    */
   notNull(x, context) {
-    if (!x) {
-      throw Error(`null/undefined ${context}`);
-    }
-    return x;
+    return safeNullCheck(x, context).fold(id, id);
   },
 
-  /** @type { (elt: unknown) => HTMLButtonElement } */
   theButton(elt) {
-    if (!(elt instanceof HTMLButtonElement)) {
-      throw Error('not Button');
-    }
-    return elt;
+    console.log({
+      elt,
+      safe: safeBtnCheck(elt),
+      tr: tryCatch(() => safeBtn(elt)).fold(id, id),
+    });
+    return safeBtnCheck(elt).fold(
+      handleErrorMessage('Input is not a button'),
+      () => elt,
+    );
   },
 
-  /** @type { (elt: unknown) => HTMLInputElement } */
   theInput(elt) {
-    if (!(elt instanceof HTMLInputElement)) {
-      throw Error('not input');
-    }
-    return elt;
+    console.log({ elt, d: safeInput(elt) });
+    return safeInputCheck(elt).fold(
+      handleErrorMessage('element is not an input box'),
+      getValue,
+    );
   },
 
-  /** @type { (elt: unknown) => HTMLTextAreaElement } */
   theTextArea(elt) {
-    if (!(elt instanceof HTMLTextAreaElement)) {
-      throw Error('not input');
-    }
-    return elt;
+    console.log({ elt, d: safeInput(elt) });
+
+    return safeInputCheck(elt).fold(
+      handleErrorMessage('element is not an input box'),
+      getValue,
+    );
   },
 
   theSelect(elt) {
-    if (!(elt instanceof HTMLSelectElement)) {
-      throw Error('not select');
-    }
-    return elt;
+    return safeTextAreaCheck(elt).fold(
+      handleErrorMessage('element is not an input box'),
+      () => elt,
+    );
   },
 };
 
@@ -132,6 +186,10 @@ const localChainInfo = {
   feeCurrencies: [stableCurrency],
   features: ['stargate', 'ibc-transfer'],
 };
+export const makeChainConfig = (obj = localChainInfo) => ({
+  ...localChainInfo,
+  obj,
+});
 
 /**
  * @param {ReturnType<typeof makeUI>} ui
@@ -241,10 +299,8 @@ const makeSigner = async (ui, keplr, connectWithSigner) => {
 const makeUI = document => {
   return freeze({
     /** @param { string } selector */
-    inputValue: selector =>
-      check.theInput(document.querySelector(selector)).value,
-    textValue: selector =>
-      check.theTextArea(document.querySelector(selector)).value,
+    inputValue: selector => check.theInput(document.querySelector(selector)),
+    textValue: selector => check.theTextArea(document.querySelector(selector)),
     setValue: (selector, value) =>
       (check.theInput(document.querySelector(selector)).value = value),
     setChecked: (selector, value) =>
@@ -258,39 +314,46 @@ const makeUI = document => {
       check
         .theButton(document.querySelector(selector))
         .addEventListener('click', handler),
-    showItems: (selector, items) =>
-      render(
-        html`<ul>
-          ${items.map(item => html`<li>${item}</li>`)}
-        </ul>`,
-        document.querySelector(selector),
-      ),
+    showItems: (selector, items) => {},
+    // render(
+    //   html`<ul>
+    //     ${items.map(item => html`<li>${item}</li>`)}
+    //   </ul>`,
+    //   document.querySelector(selector),
+    // ),
   });
 };
 
-window.addEventListener('load', async _ev => {
-  if (!('keplr' in window)) {
-    // eslint-disable-next-line no-alert
-    alert('Please install keplr extension');
-  }
-  // @ts-expect-error keplr is injected
-  const { keplr } = window;
-  const ui = makeUI(document);
+typeof window !== 'undefined' &&
+  window.addEventListener('load', async _ev => {
+    if (!('keplr' in window)) {
+      // eslint-disable-next-line no-alert
+      alert('Please install keplr extension');
+    }
+    // @ts-expect-error keplr is injected
+    const { keplr } = await window;
+    console.log({ window });
+    const ui = makeUI(document);
 
-  const s1 = await makeSigner(
-    ui,
-    keplr,
-    SigningStargateClient.connectWithSigner,
-  );
+    const s1 = await makeSigner(
+      ui,
+      keplr,
+      SigningStargateClient.connectWithSigner,
+    );
 
-  ui.onClick('#sign', async _bev =>
-    s1.sign(ui.textValue('*[name="action"]'), ui.inputValue('*[name="memo"]')),
-  );
+    ui.onClick('#sign', async _bev =>
+      s1.sign(
+        ui.textValue('*[name="action"]'),
+        ui.inputValue('*[name="memo"]'),
+      ),
+    );
 
-  const s2 = await makeMessagingSigner({ localStorage: window.localStorage });
-  ui.setValue('*[name="messagingAccount"]', s2.address);
+    const s2 = await makeMessagingSigner({
+      localStorage: window.localStorage,
+    });
+    ui.setValue('*[name="messagingAccount"]', s2.address);
 
-  ui.onClick('#makeMessagingAccount', async _bev =>
-    s1.authorizeMessagingKey(s2.address, Date.now()),
-  );
-});
+    ui.onClick('#makeMessagingAccount', async _bev =>
+      s1.authorizeMessagingKey(s2.address, Date.now()),
+    );
+  });
