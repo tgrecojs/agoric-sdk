@@ -5,8 +5,8 @@
     "build:proto": "mkdir -p src/gen && protoc --plugin=node_modules/ts-proto/protoc-gen-ts_proto --ts_proto_opt='esModuleInterop=true,forceLong=long,useOptionals=true' --ts_proto_out=./src/gen ./proto/swingset/msgs.proto -I./proto",
     "build:proto-js": "tsc --downlevelIteration --target esnext --allowSyntheticDefaultImports --moduleResolution node ./src/gen/**/*.ts",
     "start": "parcel src/keplr-ledger-demo.html",
-    "test": "node -r esm ./src/test/index.test.js",
-    "test:watch": "npx watch 'clear && npm run -s test' ./src"
+    "test": "node -r esm ./src/test/index.test.js | tap-nirvana",
+    "test:watch": "watch 'clear && npm run -s test' ./src"
   },
   "devDependencies": {
     "cheerio": "^1.0.0-rc.12",
