@@ -17,6 +17,8 @@ const handleError =
     error: err,
     uiMessage: uiMessage.length > 1 ? uiMessage : err,
   });
+
+const checkWindow = () => typeof window !== "undefined" && document;
 const handleSuccess = id;
 console.log('markup', $.html());
 
@@ -28,13 +30,25 @@ test('safeHasKeplr:: window undefined', async t => {
   t.true(actual.error, 'should return an object with an error property');
   t.true(actual.uiMessage, 'should return an object with an error property');
 
-  t.deepEquals(actual, '', 'should return a left');
   await 'done';
 });
+
+const safeWindow = () => IO((env) => {
+  console.log({env})
+  return env.window
+})
+
 test('safeHasKeplr:: window is defined', async t => {
-  console.log({ t: typeof window });
-  const actual = safeHasKeplr(window);
-  t.deepEquals(actual, Left, 'should return a left');
+  const actual = safeWindow()
+  const testWindow = {
+    keplr: {
+      connectToWallet:() => ({})
+    },
+    document: {
+      onChange: () => ({})
+    }
+  }
+  t.deepEquals(actual._inspect(),actual.run(testWindow), 'should return a left');
   await 'done';
 });
 const TEST_CONSTANTS = {

@@ -89,11 +89,7 @@ const check = {
   },
 
   theButton(elt) {
-    console.log({
-      elt,
-      safe: safeBtnCheck(elt),
-      tr: tryCatch(() => safeBtn(elt)).fold(id, id),
-    });
+
     return safeBtnCheck(elt).fold(
       handleErrorMessage('Input is not a button'),
       () => elt,
@@ -171,8 +167,14 @@ const aRegistry = new Registry([
   [SwingsetMsgs.MsgWalletAction.typeUrl, MsgWalletAction],
 ]);
 
+const features = (x =['stargate', 'ibc-transfer']) => ({
+  features: x,
+})
+
+const feeCurrencies = (arr = []) => ({})
+
 // agoric start local-chain
-const localChainInfo = {
+export const localChainInfo = {
   rpc: 'http://localhost:26657',
   // rest: api,
   chainId: 'agoric',
@@ -181,7 +183,8 @@ const localChainInfo = {
   // walletUrlForStaking: `https://${network}.staking.agoric.app`,
   bip44: {
     coinType: COSMOS_COIN_TYPE,
-    // coinType: AGORIC_COIN_TYPE, // ISSUE: how do we switch on this before we know isNanoLedger?
+    // coinType: AGORIC_COIN_TYPE, 
+    // ISSUE: how do we switch on this before we know isNanoLedger?
   },
   bech32Config,
   currencies: [stakeCurrency, stableCurrency],
@@ -190,7 +193,7 @@ const localChainInfo = {
 };
 export const makeChainConfig = (obj = localChainInfo) => ({
   ...localChainInfo,
-  obj,
+  ...obj,
 });
 
 /**

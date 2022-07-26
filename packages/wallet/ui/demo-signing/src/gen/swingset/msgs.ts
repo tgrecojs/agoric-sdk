@@ -66,11 +66,10 @@ export interface MsgInstallBundle {
  */
 export interface MsgInstallBundleResponse {}
 
-function createBaseMsgDeliverInbound(): MsgDeliverInbound {
-  return {
-    messages: [],
-    nums: [],
-    ack: Long.UZERO,
+const baseMsgDeliverInbound: object = {
+  messages: '',
+  nums: Long.UZERO,
+  ack: Long.UZERO,
     submitter: new Uint8Array(),
   };
 }
