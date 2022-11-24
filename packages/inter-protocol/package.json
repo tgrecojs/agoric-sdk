@@ -11,6 +11,7 @@
     "build": "yarn build:bundles",
     "build:bundles": "node ./scripts/build-bundles.js",
     "test": "ava",
+    "test:vaults": "ava /Users/tg/agoric-sdk/packages/inter-protocol/test/vaultFactory/test-vault*.js",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
     "lint-fix": "yarn lint:eslint --fix",

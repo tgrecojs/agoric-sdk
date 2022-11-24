@@ -797,6 +797,7 @@ const selfBehavior = {
    * @param {ZCFSeat} seat
    */
   makeVaultKit: async ({ state, facets: { manager } }, seat) => {
+    console.log('vaultManager::: inside makeVaultKit');
     const { marshaller, prioritizedVaults, storageNode, zcf } = provideEphemera(
       state.collateralBrand,
     );
@@ -804,10 +805,6 @@ const selfBehavior = {
     assert(prioritizedVaults, 'makeVaultKit missing prioritizedVaults');
     assert(storageNode, 'makeVaultKit missing storageNode');
     assert(zcf, 'makeVaultKit missing zcf');
-    assertProposalShape(seat, {
-      give: { Collateral: null },
-      want: { Minted: null },
-    });
 
     state.vaultCounter += 1;
     const vaultId = String(state.vaultCounter);
@@ -823,6 +820,9 @@ const selfBehavior = {
       vaultStorageNode,
       marshaller,
     );
+    console.log('::: inside makeVaultKit:::::::: after makeVault() ', {
+      vault,
+    });
 
     try {
       // TODO `await` is allowed until the above ordering is fixed

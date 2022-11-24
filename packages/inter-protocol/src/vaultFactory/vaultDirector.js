@@ -200,20 +200,24 @@ const initState = (
  * @param {MethodContext} context
  */
 const makeVaultInvitation = ({ state }) => {
+  console.log('inside makeVaultInvitation:::', { state });
   const { zcf } = ephemera;
 
   const { collateralTypes } = state;
 
   /** @param {ZCFSeat} seat */
   const makeVaultHook = async seat => {
-    assertProposalShape(seat, {
-      give: { Collateral: null },
-      want: { Minted: null },
-    });
     const {
       give: { Collateral: collateralAmount },
       want: { Minted: requestedAmount },
     } = seat.getProposal();
+    console.log('inside makeVaultHook:::');
+
+    console.log('############ Collateral && requestedAmount #########', {
+      collateralAmount,
+      requestedAmount,
+    });
+
     const { brand: brandIn } = collateralAmount;
     collateralTypes.has(brandIn) ||
       assert.fail(X`Not a supported collateral type ${brandIn}`);
@@ -232,6 +236,7 @@ const makeVaultInvitation = ({ state }) => {
     const mgr = collateralTypes.get(brandIn);
     return mgr.makeVaultKit(seat);
   };
+
   return zcf.makeInvitation(makeVaultHook, 'MakeVault');
 };
 
@@ -487,6 +492,7 @@ const publicBehavior = {
    * @param {Brand} brandIn
    */
   getCollateralManager: ({ state }, brandIn) => {
+    console.log('inside getCollateralManager():::', { state, brandIn });
     const { collateralTypes } = state;
     collateralTypes.has(brandIn) ||
       assert.fail(X`Not a supported collateral type ${brandIn}`);

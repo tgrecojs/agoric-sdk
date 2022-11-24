@@ -3,7 +3,7 @@ services:
   ag-solo:
     # This tag needs to be the SDK used by the $NETCONFIG_URL
     #  SDK_TAG=agoricdev-10
-    image: agoric/agoric-sdk:${SDK_TAG}
+    image: agoric/agoric-sdk:20221005194746-fa272e
     # ISSUE: 127.0.0.1? not a docker network?
     ports:
       - "${HOST_PORT:-8000}:${PORT:-8000}"
@@ -17,6 +17,6 @@ services:
       - setup
       - --webhost=0.0.0.0
       - --webport=${PORT:-8000}
-      - --netconfig=${NETCONFIG_URL:-https://stage.agoric.net/network-config}
+      - --netconfig=${NETCONFIG_URL:-https://devnet.agoric.net/network-config}
 volumes:
   ag-solo-state:
