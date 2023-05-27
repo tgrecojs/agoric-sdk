@@ -3,7 +3,7 @@ module github.com/Agoric/agoric-sdk
 go 1.20
 
 require (
-	github.com/armon/go-metrics v0.4.0
+	github.com/armon/go-metrics v0.4.1
 	github.com/cosmos/cosmos-sdk v0.45.11
 	github.com/cosmos/gaia/v7 v7.0.0-00010101000000-000000000000
 	github.com/cosmos/ibc-go/v3 v3.4.0
