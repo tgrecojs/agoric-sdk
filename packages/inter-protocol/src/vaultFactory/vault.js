@@ -151,6 +151,8 @@ const VaultStateShape = harden({
   debtSnapshot: M.any(),
 });
 
+
+
 /**
  * @param {import('@agoric/ertp').Baggage} baggage
  * @param {import('@agoric/zoe/src/contractSupport/recorder.js').MakeRecorderKit} makeRecorderKit

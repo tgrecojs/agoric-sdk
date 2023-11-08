@@ -258,7 +258,6 @@ export const prepareVaultManagerKit = (
       lockedQuote: undefined,
     });
   };
-
   const makeVaultManagerKitInternal = prepareExoClassKit(
     baggage,
     'VaultManagerKit',
