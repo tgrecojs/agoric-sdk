@@ -7,15 +7,178 @@ import bundleSource from '@endo/bundle-source';
 import { E } from '@endo/eventual-send';
 import { resolve as importMetaResolve } from 'import-meta-resolve';
 
-import { AmountMath, makeIssuerKit } from '@agoric/ertp';
+import { AmountMath, AssetKind, makeIssuerKit } from '@agoric/ertp';
 
 import { assert } from '@agoric/assert';
 import { makeTracer } from '@agoric/internal';
 import { Far } from '@endo/marshal';
+import { ceilMultiplyBy, makeRatio } from '@agoric/zoe/src/contractSupport/index.js';
+import { getRunFromFaucet, legacyOfferResult, setupElectorateReserveAndAuction } from '../vaultFactoryUtils.js';
+import { calculateCurrentDebt } from '../../../src/interest-math.js';
+import { startVaultFactory } from '../../../src/proposals/econ-behaviors.js';
+import { makeManualPriceAuthority } from '@agoric/zoe/tools/manualPriceAuthority.js';
+import { makeScriptedPriceAuthority } from '@agoric/zoe/tools/scriptedPriceAuthority.js';
+import buildManualTimer from '@agoric/zoe/tools/manualTimer.js';
+import { eventLoopIteration } from '@agoric/notifier/tools/testSupports.js';
 
 const vaultRoot = '../vault-contract-wrapper.js';
 const trace = makeTracer('TestVault', false);
 
+/**
+ * NOTE: called separately by each test so zoe/priceAuthority don't interfere
+ *
+ * @param {import('ava').ExecutionContext<Context>} t
+ * @param {NatValue[] | Ratio} priceOrList
+ * @param {Amount | undefined} unitAmountIn
+ * @param {import('@agoric/time/src/types').TimerService} timer
+ * @param {RelativeTime} quoteInterval
+ * @param {bigint} stableInitialLiquidity
+ * @param {bigint} [startFrequency]
+ */
+const setupServices = async (
+    t,
+    priceOrList,
+    unitAmountIn,
+    timer = buildManualTimer(t.log, 0n, { eventLoopIteration }),
+    quoteInterval = 1n,
+    stableInitialLiquidity,
+    startFrequency = undefined,
+) => {
+    const {
+        zoe,
+        run,
+        aeth,
+        interestTiming,
+        minInitialDebt,
+        referencedUi,
+        rates,
+    } = t.context;
+    t.context.timer = timer;
+
+    const runPayment = await getRunFromFaucet(t, stableInitialLiquidity);
+    trace(t, 'faucet', { stableInitialLiquidity, runPayment });
+
+    const { space } = await setupElectorateReserveAndAuction(
+        t,
+        // @ts-expect-error inconsistent types with withAmountUtils
+        run,
+        aeth,
+        priceOrList,
+        quoteInterval,
+        unitAmountIn,
+        { StartFrequency: startFrequency },
+    );
+
+    const { consume, produce } = space;
+
+    const quoteIssuerKit = makeIssuerKit('quote', AssetKind.SET);
+    // Cheesy hack for easy use of manual price authority
+    const pa = Array.isArray(priceOrList)
+        ? makeScriptedPriceAuthority({
+            actualBrandIn: aeth.brand,
+            actualBrandOut: run.brand,
+            priceList: priceOrList,
+            timer,
+            quoteMint: quoteIssuerKit.mint,
+            unitAmountIn,
+            quoteInterval,
+        })
+        : makeManualPriceAuthority({
+            actualBrandIn: aeth.brand,
+            actualBrandOut: run.brand,
+            initialPrice: priceOrList,
+            timer,
+            quoteIssuerKit,
+        });
+    produce.priceAuthority.resolve(pa);
+
+    const {
+        installation: { produce: iProduce },
+    } = space;
+    iProduce.VaultFactory.resolve(t.context.installation.VaultFactory);
+    iProduce.liquidate.resolve(t.context.installation.liquidate);
+    await startVaultFactory(
+        space,
+        { interestTiming, options: { referencedUi } },
+        minInitialDebt,
+    );
+
+    const governorCreatorFacet = E.get(
+        consume.vaultFactoryKit,
+    ).governorCreatorFacet;
+    /** @type {Promise<VaultFactoryCreatorFacet>} */
+    const vaultFactoryCreatorFacetP = E.get(consume.vaultFactoryKit).creatorFacet;
+    const reserveCreatorFacet = E.get(consume.reserveKit).creatorFacet;
+    const reservePublicFacet = E.get(consume.reserveKit).publicFacet;
+    const reserveKit = { reserveCreatorFacet, reservePublicFacet };
+
+    // Add a vault that will lend on aeth collateral
+    /** @type {Promise<VaultManager>} */
+    const aethVaultManagerP = E(vaultFactoryCreatorFacetP).addVaultType(
+        aeth.issuer,
+        'AEth',
+        rates,
+    );
+    /**
+     * @type {[
+     *   any,
+     *   VaultFactoryCreatorFacet,
+     *   VFC['publicFacet'],
+     *   VaultManager,
+     *   PriceAuthority,
+     *   CollateralManager,
+     * ]}
+     */
+    const [
+        governorInstance,
+        vaultFactory, // creator
+        vfPublic,
+        aethVaultManager,
+        priceAuthority,
+        aethCollateralManager,
+    ] = await Promise.all([
+        E(consume.agoricNames).lookup('instance', 'VaultFactoryGovernor'),
+        vaultFactoryCreatorFacetP,
+        E.get(consume.vaultFactoryKit).publicFacet,
+        aethVaultManagerP,
+        consume.priceAuthority,
+        E(aethVaultManagerP).getPublicFacet(),
+    ]);
+    trace(t, 'pa', {
+        governorInstance,
+        vaultFactory,
+        vfPublic,
+        priceAuthority: !!priceAuthority,
+    });
+
+    const { g, v } = {
+        g: {
+            governorInstance,
+            governorPublicFacet: E(zoe).getPublicFacet(governorInstance),
+            governorCreatorFacet,
+        },
+        v: {
+            // name for backwards compatiiblity
+            lender: E(vfPublic).getCollateralManager(aeth.brand),
+            vaultFactory,
+            vfPublic,
+            aethVaultManager,
+            aethCollateralManager,
+        },
+    };
+
+    console.log('at end of setupServices:::', { priceAuthority, pa });
+
+    return {
+        zoe,
+        governor: g,
+        vaultFactory: v,
+        runKit: { issuer: run.issuer, brand: run.brand },
+        priceAuthority,
+        reserveKit,
+        space,
+    };
+};
 /**
  * The properties will be asssigned by `setTestJig` in the contract.
  *
@@ -37,7 +200,6 @@ const { zoe, feeMintAccessP: feeMintAccess } = await setUpZoeForTest({
     setJig,
     useNearRemote: true,
 });
-trace('makeZoe');
 
 const defaultGreetingMsgFn =
     input => `Hey there, ${input}! Word on the street is that you are interested in some leverage but you are not too fond of liquidaations.
@@ -61,11 +223,15 @@ const tipCalculatorFacet = Far('Tip Calculator Facet', {
 
     }
 })
-
 const nonOpaque = {
     name: 'thomas',
     greeting: x => '',
 };
+
+
+
+
+
 /**
  * @param {ERef<ZoeService>} zoeP
  * @param {string} sourceRoot
@@ -167,11 +333,28 @@ test('first', async t => {
 
     const collateralAmount = AmountMath.make(cBrand, 20n);
     const invite = await E(creatorFacet).makeAdjustBalancesInvitation();
+
+    const atomKit = makeIssuerKit('ATOM');
+
+    const atoms = x => AmountMath.make(atomKit.brand, x);
+
+    const usdcAtomRatio = (x = 10n) => makeRatio(100n, atoms(x));
+
+
+    const tenToOne = usdcAtomRatio();
+
+    console.log({ usdcAtomRatio: tenToOne })
+
+    t.is(tenToOne, '')
+    const getVaultCollateral = vault => priceQuote => {
+
+    }
+
     const giveCollateralSeat = await E(zoe).offer(
         invite,
         harden({
             give: { Collateral: collateralAmount },
-            want: {}, // Minted: AmountMath.make(stableBrand, 2n) },
+            want: {}, // Minted: AmountMath.make(stablcdccccccc7777eBrand, 2n) },
         }),
         harden({
             // TODO
@@ -221,6 +404,7 @@ test('first', async t => {
     );
     t.is(returnedAmount.value, 1n, 'withdrew 1 collateral');
 });
+
 
 // test('bad collateral', async t => {
 //     const { creatorSeat: offerKit } = await helperContract;
