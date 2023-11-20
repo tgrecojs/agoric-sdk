@@ -99,21 +99,21 @@ export const setupElectorateReserveAndAuction = async (
   // Cheesy hack for easy use of manual price authority
   const pa = Array.isArray(priceOrList)
     ? makeScriptedPriceAuthority({
-      actualBrandIn: aeth.brand,
-      actualBrandOut: run.brand,
-      priceList: priceOrList,
-      timer,
-      quoteMint: quoteIssuerKit.mint,
-      unitAmountIn,
-      quoteInterval,
-    })
+        actualBrandIn: aeth.brand,
+        actualBrandOut: run.brand,
+        priceList: priceOrList,
+        timer,
+        quoteMint: quoteIssuerKit.mint,
+        unitAmountIn,
+        quoteInterval,
+      })
     : makeManualPriceAuthority({
-      actualBrandIn: aeth.brand,
-      actualBrandOut: run.brand,
-      initialPrice: priceOrList,
-      timer,
-      quoteIssuerKit,
-    });
+        actualBrandIn: aeth.brand,
+        actualBrandOut: run.brand,
+        initialPrice: priceOrList,
+        timer,
+        quoteIssuerKit,
+      });
   space.produce.priceAuthority.resolve(pa);
 
   const auctionParams = {

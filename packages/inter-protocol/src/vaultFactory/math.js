@@ -38,10 +38,14 @@ export const calculateMinimumCollateralization = (
  */
 export const minimumPrice = (quoteA, quoteB) => {
   const priceA = priceFrom(quoteA);
+  console.log({ quoteA, quoteB, priceA });
+
   if (quoteB === undefined) {
     return priceA;
   }
   const priceB = priceFrom(quoteB);
+  console.log({ priceA, priceB });
+
   if (ratioGTE(priceA, priceB)) {
     return priceB;
   } else {
@@ -69,8 +73,25 @@ export const maxDebtForVault = (
     liquidationMargin,
     liquidationPadding,
   );
+  const result = floorDivideBy(debtByQuote, minimumCollateralization);
+
+  console.group('########## maxDebtForVault ########');
+  console.log('-------------------------------------------');
+  console.log('@@@@', 'debtByQuote', { debtByQuote, quoteAmount });
+  console.log('-------------------------------------------');
+  console.log('@@@@', 'liquidationMargin', { liquidationMargin });
+  console.log('-------------------------------------------');
+  console.log('@@@@', 'liquidationPadding', { liquidationPadding });
+  console.log('-------------------------------------------');
+  console.log('@@@@', 'minimumCollateralization', { minimumCollateralization });
+  console.log('-------------------------------------------');
+  console.log(
+    '##############################  floorDivideBy(debtByQuote, minimumCollateralization) :: RESULT',
+    { result },
+  );
+  console.groupEnd();
   // floorDivide because we want the debt ceiling lower
-  return floorDivideBy(debtByQuote, minimumCollateralization);
+  return result;
 };
 
 /**

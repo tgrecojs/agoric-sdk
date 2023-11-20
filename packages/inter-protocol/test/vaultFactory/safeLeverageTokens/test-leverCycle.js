@@ -16,14 +16,15 @@ import {
   ceilMultiplyBy,
   makeRatio,
 } from '@agoric/zoe/src/contractSupport/index.js';
-import { setupServices } from './helpers.js';
-import { defaultParamValues, legacyOfferResult } from '../vaultFactoryUtils.js';
-import { calculateCurrentDebt } from '../../../src/interest-math.js';
 import { unsafeMakeBundleCache } from '@agoric/swingset-vat/tools/bundleTool.js';
-import { withAmountUtils } from '../../supports.js';
 import { eventLoopIteration } from '@agoric/internal/src/testing-utils.js';
 import buildManualTimer from '@agoric/zoe/tools/manualTimer.js';
+import { setupServicesAlt, setupServices } from './helpers.js';
+import { defaultParamValues, legacyOfferResult } from '../vaultFactoryUtils.js';
+import { calculateCurrentDebt } from '../../../src/interest-math.js';
+import { withAmountUtils } from '../../supports.js';
 import { SECONDS_PER_YEAR } from '../../../src/interest.js';
+import { maxDebtForVault } from '../../../src/vaultFactory/math.js';
 
 const vaultRoot = '../vault-contract-wrapper.js';
 const trace = makeTracer('TestVault', false);
@@ -120,11 +121,11 @@ test('interest on many vaults', async t => {
     chargingPeriod: SECONDS_PER_WEEK,
     recordingPeriod: SECONDS_PER_WEEK,
   };
-  const manualTimer = buildManualTimer(t.log, 0n, {
+  const manualTimer = b1uildManualTimer(t.log, 0n, {
     timeStep: SECONDS_PER_DAY,
     eventLoopIteration,
   });
-  const services = await setupServices(
+  const services = await setupServicesAlt(
     t,
     [500n, 1500n],
     aeth.make(90n),
@@ -134,7 +135,11 @@ test('interest on many vaults', async t => {
     // manual timer steps with granularity of a day, which confuses the auction
     52n * 7n * 24n * 3600n,
   );
-  const { aethCollateralManager, vaultFactory, vfPublic } =
+
+  const pa = services.priceAuthority;
+
+  t.is(pa, await pa);
+  const { aethCollateralManager, vaultFactory, vfPublic, ...restc } =
     services.vaultFactory;
 
   // Create a loan for Alice for 4700 Minted with 1100 aeth collateral
@@ -158,25 +163,21 @@ test('interest on many vaults', async t => {
 
   const testInvitationLiveliness = async (t, invitation, proposal, payment) => {
     t.is(await E(invitationIssuer).isLive(invitation), true);
-
     /** @type {UserSeat<VaultKit>} */
     const vaultSeat = await handleMakeVault(invitation, proposal, payment);
-
     t.is(
       await E(invitationIssuer).isLive(invitation),
       false,
       'Invitation should no longer be lived after being used.',
     );
-
     return vaultSeat;
   };
 
   const getCollateralManager = (collateralBrand, publicFacet = vfPublic) =>
     E(publicFacet).getCollateralManager(collateralBrand);
 
-  const aEthCollateralManager = await getCollateralManager(aeth.brand);
   const setupVaultInvittions = () =>
-    E(aEthCollateralManager).makeVaultInvitation();
+    E(aethCollateralManager).makeVaultInvitation();
 
   const aliceAEthInvitation = setupVaultInvittions();
   t.is(await E(invitationIssuer).isLive(aliceAEthInvitation), true);

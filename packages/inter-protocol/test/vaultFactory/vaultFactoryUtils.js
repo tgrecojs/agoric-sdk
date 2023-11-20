@@ -173,6 +173,7 @@ export const legacyOfferResult = vaultSeat => {
   return E(vaultSeat)
     .getOfferResult()
     .then(result => {
+      console.log('result:::', { result });
       const { vault, publicSubscribers } = result;
       assert(vault, 'missing vault');
       assert(publicSubscribers, 'missing publicSubscribers');
