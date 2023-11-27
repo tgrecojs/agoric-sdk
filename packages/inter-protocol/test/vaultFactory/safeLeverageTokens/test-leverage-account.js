@@ -20,165 +20,14 @@ import { makeManualPriceAuthority } from '@agoric/zoe/tools/manualPriceAuthority
 import { makeScriptedPriceAuthority } from '@agoric/zoe/tools/scriptedPriceAuthority.js';
 import buildManualTimer from '@agoric/zoe/tools/manualTimer.js';
 import { eventLoopIteration } from '@agoric/notifier/tools/testSupports.js';
+import { defaultFeeIssuerConfig } from './driver.js';
+import { multiplyBy } from '@agoric/zoe/src/contractSupport/ratio.js';
 
 const vaultRoot = '../vault-contract-wrapper.js';
 const trace = makeTracer('TestVault', false);
 
-/**
- * NOTE: called separately by each test so zoe/priceAuthority don't interfere
- *
- * @param {import('ava').ExecutionContext<Context>} t
- * @param {NatValue[] | Ratio} priceOrList
- * @param {Amount | undefined} unitAmountIn
- * @param {import('@agoric/time/src/types').TimerService} timer
- * @param {RelativeTime} quoteInterval
- * @param {bigint} stableInitialLiquidity
- * @param {bigint} [startFrequency]
- */
-const setupServices = async (
-    t,
-    priceOrList,
-    unitAmountIn,
-    timer = buildManualTimer(t.log, 0n, { eventLoopIteration }),
-    quoteInterval = 1n,
-    stableInitialLiquidity,
-    startFrequency = undefined,
-) => {
-    const {
-        zoe,
-        run,
-        aeth,
-        interestTiming,
-        minInitialDebt,
-        referencedUi,
-        rates,
-    } = t.context;
-    t.context.timer = timer;
 
-    const runPayment = await getRunFromFaucet(t, stableInitialLiquidity);
-    trace(t, 'faucet', { stableInitialLiquidity, runPayment });
 
-    const { space } = await setupElectorateReserveAndAuction(
-        t,
-        // @ts-expect-error inconsistent types with withAmountUtils
-        run,
-        aeth,
-        priceOrList,
-        quoteInterval,
-        unitAmountIn,
-        { StartFrequency: startFrequency },
-    );
-
-    const { consume, produce } = space;
-
-    const quoteIssuerKit = makeIssuerKit('quote', AssetKind.SET);
-    // Cheesy hack for easy use of manual price authority
-    const pa = Array.isArray(priceOrList)
-        ? makeScriptedPriceAuthority({
-            actualBrandIn: aeth.brand,
-            actualBrandOut: run.brand,
-            priceList: priceOrList,
-            timer,
-            quoteMint: quoteIssuerKit.mint,
-            unitAmountIn,
-            quoteInterval,
-        })
-        : makeManualPriceAuthority({
-            actualBrandIn: aeth.brand,
-            actualBrandOut: run.brand,
-            initialPrice: priceOrList,
-            timer,
-            quoteIssuerKit,
-        });
-    produce.priceAuthority.resolve(pa);
-
-    const {
-        installation: { produce: iProduce },
-    } = space;
-    iProduce.VaultFactory.resolve(t.context.installation.VaultFactory);
-    iProduce.liquidate.resolve(t.context.installation.liquidate);
-    await startVaultFactory(
-        space,
-        { interestTiming, options: { referencedUi } },
-        minInitialDebt,
-    );
-
-    const governorCreatorFacet = E.get(
-        consume.vaultFactoryKit,
-    ).governorCreatorFacet;
-    /** @type {Promise<VaultFactoryCreatorFacet>} */
-    const vaultFactoryCreatorFacetP = E.get(consume.vaultFactoryKit).creatorFacet;
-    const reserveCreatorFacet = E.get(consume.reserveKit).creatorFacet;
-    const reservePublicFacet = E.get(consume.reserveKit).publicFacet;
-    const reserveKit = { reserveCreatorFacet, reservePublicFacet };
-
-    // Add a vault that will lend on aeth collateral
-    /** @type {Promise<VaultManager>} */
-    const aethVaultManagerP = E(vaultFactoryCreatorFacetP).addVaultType(
-        aeth.issuer,
-        'AEth',
-        rates,
-    );
-    /**
-     * @type {[
-     *   any,
-     *   VaultFactoryCreatorFacet,
-     *   VFC['publicFacet'],
-     *   VaultManager,
-     *   PriceAuthority,
-     *   CollateralManager,
-     * ]}
-     */
-    const [
-        governorInstance,
-        vaultFactory, // creator
-        vfPublic,
-        aethVaultManager,
-        priceAuthority,
-        aethCollateralManager,
-    ] = await Promise.all([
-        E(consume.agoricNames).lookup('instance', 'VaultFactoryGovernor'),
-        vaultFactoryCreatorFacetP,
-        E.get(consume.vaultFactoryKit).publicFacet,
-        aethVaultManagerP,
-        consume.priceAuthority,
-        E(aethVaultManagerP).getPublicFacet(),
-    ]);
-    trace(t, 'pa', {
-        governorInstance,
-        vaultFactory,
-        vfPublic,
-        priceAuthority: !!priceAuthority,
-    });
-
-    const { g, v } = {
-        g: {
-            governorInstance,
-            governorPublicFacet: E(zoe).getPublicFacet(governorInstance),
-            governorCreatorFacet,
-        },
-        v: {
-            // name for backwards compatiiblity
-            lender: E(vfPublic).getCollateralManager(aeth.brand),
-            vaultFactory,
-            vfPublic,
-            aethVaultManager,
-            aethCollateralManager,
-        },
-    };
-
-    console.log('at end of setupServices:::', { priceAuthority, pa });
-
-    return {
-        zoe,
-        governor: g,
-        vaultFactory: v,
-        runKit: { issuer: run.issuer, brand: run.brand },
-        priceAuthority,
-        reserveKit,
-        space,
-    };
-};
 /**
  * The properties will be asssigned by `setTestJig` in the contract.
  *
@@ -198,6 +47,7 @@ const setJig = jig => {
 
 const { zoe, feeMintAccessP: feeMintAccess } = await setUpZoeForTest({
     setJig,
+    feeIssuerConfig: defaultFeeIssuerConfig,
     useNearRemote: true,
 });
 
@@ -338,14 +188,17 @@ test('first', async t => {
 
     const atoms = x => AmountMath.make(atomKit.brand, x);
 
-    const usdcAtomRatio = (x = 10n) => makeRatio(100n, atoms(x));
+    const usdcAtomRatio = (x = 10n) => makeRatio(100n, atomKit.brand);
 
+    const atomCollateralizationRatio = makeRatio(100n, atomKit.brand, 200n, atomKit.brand)
+
+    const maxAtom = (amount = atoms(10n)) => multiplyBy(amount, atomCollateralizationRatio)
 
     const tenToOne = usdcAtomRatio();
 
     console.log({ usdcAtomRatio: tenToOne })
 
-    t.is(tenToOne, '')
+    t.deepEqual(maxAtom(atoms(10n)), atoms(5n))
     const getVaultCollateral = vault => priceQuote => {
 
     }

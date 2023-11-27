@@ -18,18 +18,25 @@ const aeth = withAmountUtils(makeIssuerKit('Aeth'));
  * @param {readonly [Number, Number, Number]} input
  * @param {bigint} result
  */
-function checkMax(
+const checkMax = (
   t,
   [pricePerColl, liquidationMarginNum, liquidationPaddingNum],
   result,
-) {
+) => {
   const costOfCollateral = BigInt(1_000 * pricePerColl);
+  console.log({costOfCollateral, pricePerColl})
 
   /** @type {PriceQuote} */
   const quote = {
     // @ts-expect-error cast
     quoteAmount: { value: [{ amountOut: stable.make(costOfCollateral) }] },
   };
+
+  const trace = label => value => {
+      console.log(label, ':::', value)
+      return value
+  }
+  console.log(quote.quoteAmount.value.map(trace('logging quote amount')))
 
   // the liquidationMargin term is a ratio so we add 1 to our incoming parameter
   const liquidationMargin = harden({

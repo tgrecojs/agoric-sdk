@@ -97,6 +97,7 @@ export const setupElectorateReserveAndAuction = async (
   const quoteIssuerKit = makeIssuerKit('quote', AssetKind.SET);
 
   // Cheesy hack for easy use of manual price authority
+
   const pa = Array.isArray(priceOrList)
     ? makeScriptedPriceAuthority({
         actualBrandIn: aeth.brand,
@@ -114,6 +115,7 @@ export const setupElectorateReserveAndAuction = async (
         timer,
         quoteIssuerKit,
       });
+  console.log("Array.isArray(priceOrList)::",Array.isArray(priceOrList) ? 'scriptedPa' : 'manuelPa')
   space.produce.priceAuthority.resolve(pa);
 
   const auctionParams = {
@@ -141,7 +143,7 @@ export const getRunFromFaucet = async (t, amount) => {
     feeMintAccess,
     run,
   } = t.context;
-  /** @type {Promise<Installation<import('./faucet.js').start>>} */
+  /** @type {Promise<Installation<import('../faucet.js').start>>} */
   // On-chain, there will be pre-existing RUN. The faucet replicates that
   // @ts-expect-error
   const { creatorFacet: faucetCreator } = await E(zoe).startInstance(
@@ -160,6 +162,8 @@ export const getRunFromFaucet = async (t, amount) => {
   );
 
   const runPayment = await E(faucetSeat).getPayout('RUN');
+
+  console.log('runPayment:::', { runPayment, amount: await E(run.issuer).getAmountOf(runPayment)})
   return runPayment;
 };
 

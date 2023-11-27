@@ -36,6 +36,18 @@ const trace = makeTracer('VFDriver');
 export const AT_NEXT = Symbol('AT_NEXT');
 
 export const BASIS_POINTS = 10000n;
+const tracer = label => value => {
+    console.log(label, ':::', value)
+    return value
+}
+
+export const defaultFeeIssuerConfig = harden(
+  /** @type {const} */ ({
+    name: 'IST_TEST',
+    assetKind: AssetKind.NAT,
+    displayInfo: harden({ decimalPlaces: 6, assetKind: AssetKind.NAT }),
+  }),
+);
 
 // Define locally to test that vaultFactory uses these values
 export const Phase = /** @type {const} */ ({
@@ -72,6 +84,13 @@ const defaultParamValues = debt =>
     // NB: liquidationPadding defaults to zero in contract
   });
 
+
+  const inspectEntry = ([key, value]) => {
+    console.log('key:::',key, {value:{...value}})
+    return {key, value}
+  }
+
+  
 /**
  * @typedef {{
  *   aeth: IssuerKit & import('../../supports.js').AmountUtils;
@@ -112,6 +131,7 @@ export const makeDriverContext = async ({
   const { zoe, feeMintAccessP } = await setUpZoeForTest();
   const stableIssuer = await E(zoe).getFeeIssuer();
   const stableBrand = await E(stableIssuer).getBrand();
+  console.log({stableBrand})
   // @ts-expect-error missing mint
   const run = withAmountUtils({ issuer: stableIssuer, brand: stableBrand });
   const aeth = withAmountUtils(makeIssuerKit('aEth'));
@@ -138,9 +158,10 @@ export const makeDriverContext = async ({
     stableInitialLiquidity: run.make(1_500_000_000n),
     aethInitialLiquidity: AmountMath.make(aeth.brand, 900_000_000n),
   };
+  console.log('contextPs:::', {contextPs, inspectRates: Object.entries(contextPs.rates).map(inspectEntry)})
   const frozenCtx = await deeplyFulfilled(harden(contextPs));
   return { ...frozenCtx, bundleCache, run, aeth };
-};
+}
 
 /** @param {import('ava').ExecutionContext<DriverContext>} t */
 const setupReserveAndElectorate = async t => {
@@ -266,14 +287,20 @@ const setupServices = async (t, initialPrice, priceBase) => {
    *   VaultManager,
    * ]}
    */
-  const [governorInstance, vaultFactory, vfPublic, aethVaultManager] =
+  const contractInstances =
     await Promise.all([
       E(consume.agoricNames).lookup('instance', 'VaultFactoryGovernor'),
       vaultFactoryCreatorFacet,
       E(governorCreatorFacet).getPublicFacet(),
       aethVaultManagerP,
     ]);
+const trace = label => value => {
+    console.log(label, ':::', value)
+    return value
+}
+contractInstances.map(trace('contract nstnace'))
 
+const [governorInstance, vaultFactory, vfPublic, aethVaultManager] = contractInstances;
   return {
     zoe,
     governor: {

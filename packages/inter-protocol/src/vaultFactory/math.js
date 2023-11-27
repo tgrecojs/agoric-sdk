@@ -77,7 +77,7 @@ export const maxDebtForVault = (
 
   console.group('########## maxDebtForVault ########');
   console.log('-------------------------------------------');
-  console.log('@@@@', 'debtByQuote', { debtByQuote, quoteAmount });
+  console.log('@@@@', 'debtByQuote', { debtByQuote, quoteAmount: quoteAmount });
   console.log('-------------------------------------------');
   console.log('@@@@', 'liquidationMargin', { liquidationMargin });
   console.log('-------------------------------------------');

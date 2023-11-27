@@ -112,6 +112,7 @@ const setupServices = async (
         timer,
         quoteIssuerKit,
       });
+
   produce.priceAuthority.resolve(pa);
 
   const {
@@ -173,6 +174,7 @@ const setupServices = async (
     priceAuthority: !!priceAuthority,
   });
 
+
   const { g, v } = {
     g: {
       governorInstance,
@@ -201,6 +203,19 @@ const setupServices = async (
     space,
   };
 };
+
+[1,2,3,5].filter((x, i) => i % 2 === 0)
+let generateArrayWithMap = (length, mapFunction) => [...new Array(length)].map((
+  _, index) => mapFunction(index));
+
+let priceList = [9, 10, 11];
+
+// 1. creating a static price list that iterates over values
+// 2. mimics the same behavior as oracle with exception of being *scripted*
+
+const generateMockMarketData = generateArrayWithMap(5, index => index * 3)
+
+
 
 /**
  * NOTE: called separately by each test so zoe/priceAuthority don't interfere
@@ -231,6 +246,7 @@ const setupServicesAlt = async (
     referencedUi,
     rates,
   } = t.context;
+  console.log({run})
   t.context.timer = timer;
 
   const runPayment = await getRunFromFaucet(t, stableInitialLiquidity);
@@ -323,6 +339,7 @@ const setupServicesAlt = async (
     consume.priceAuthority,
     E(aethVaultManagerP).getPublicFacet(),
   ]);
+
   trace(t, 'pa', {
     governorInstance,
     vaultFactory,
@@ -343,8 +360,15 @@ const setupServicesAlt = async (
       vfPublic,
       aethVaultManager,
       aethCollateralManager,
+      quoteIssuer: () => quoteIssuerKit.issuer
     },
   };
+
+  console.log({priceAuthority})
+  const quoteNotifier = (brandOut) => amountIn => E(pa).makeQuoteNotifier(amountIn, brandOut)
+  const quoteIssuer = await E(pa).getQuoteIssuer(aeth.brand, run.brand)
+  const getCurrentPriceQuote = pa => (amountIn, brandOut) => E(pa).quoteGiven(amountIn, brandOut)
+  const getQuoteGiven = amountIn => getCurrentPriceQuote(priceAuthority)(amountIn, run.brand);
 
   return {
     zoe,
@@ -352,8 +376,12 @@ const setupServicesAlt = async (
     vaultFactory: v,
     runKit: { issuer: run.issuer, brand: run.brand },
     priceAuthority,
+    quoteAEthInRun: quoteNotifier(run.brand),
+    quoteIssuer,
+    getQuoteGiven,
     reserveKit,
     space,
+    timer
   };
 };
 

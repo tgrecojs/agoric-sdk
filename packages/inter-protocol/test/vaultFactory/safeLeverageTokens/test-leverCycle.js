@@ -8,7 +8,6 @@ import { E } from '@endo/eventual-send';
 import { resolve as importMetaResolve } from 'import-meta-resolve';
 
 import { AmountMath, AssetKind, makeIssuerKit } from '@agoric/ertp';
-
 import { assert } from '@agoric/assert';
 import { allValues, makeTracer, objectMap } from '@agoric/internal';
 import { Far, deeplyFulfilled } from '@endo/marshal';
@@ -25,6 +24,9 @@ import { calculateCurrentDebt } from '../../../src/interest-math.js';
 import { withAmountUtils } from '../../supports.js';
 import { SECONDS_PER_YEAR } from '../../../src/interest.js';
 import { maxDebtForVault } from '../../../src/vaultFactory/math.js';
+import { subscriptionTracker } from '../../metrics.js';
+import { defaultFeeIssuerConfig } from './driver.js';
+import { createNATArray, createPriceData } from './utils.js';
 
 const vaultRoot = '../vault-contract-wrapper.js';
 const trace = makeTracer('TestVault', false);
@@ -62,10 +64,37 @@ export const Phase = /** @type {const} */ ({
   TRANSFER: 'transfer',
 });
 
+/**
+ * The properties will be asssigned by `setTestJig` in the contract.
+ *
+ * @typedef {object} TestContext
+ * @property {ZCF} zcf
+ * @property {ZCFMint} stableMint
+ * @property {IssuerKit} collateralKit
+ * @property {Vault} vault
+ * @property {Function} advanceRecordingPeriod
+ * @property {Function} setInterestRate
+ */
+let testJig;
+
+/** @param {TestContext} jig */
+const setJig = jig => {
+
+  testJig = jig
+};
+
+const { zoe, feeMintAccessP: feeMintAccess } = await setUpZoeForTest({
+  setJig,
+  useNearRemote: true,
+});
+
 test.before(async t => {
-  const { zoe, feeMintAccessP } = await setUpZoeForTest();
+  const { zoe, feeMintAccessP } = await setUpZoeForTest({setJig, feeIssuerConfig: defaultFeeIssuerConfig});
+  console.log({zoe, feeMintAccessP})
   const stableIssuer = await E(zoe).getFeeIssuer();
   const stableBrand = await E(stableIssuer).getBrand();
+  console.log({zoe, stableIssuer})
+
   // @ts-expect-error missing mint
   const run = withAmountUtils({ issuer: stableIssuer, brand: stableBrand });
   const aeth = withAmountUtils(
@@ -109,6 +138,9 @@ test.before(async t => {
 
 test('interest on many vaults', async t => {
   const { zoe, aeth, run, rates: defaultRates } = t.context;
+ const tObject = t;
+
+ console.log({tObject,defaultRates })
   const invitationIssuer = await E(zoe).getInvitationIssuer();
   console.log({ t: t.context });
   const rates = {
@@ -121,13 +153,21 @@ test('interest on many vaults', async t => {
     chargingPeriod: SECONDS_PER_WEEK,
     recordingPeriod: SECONDS_PER_WEEK,
   };
-  const manualTimer = b1uildManualTimer(t.log, 0n, {
+  
+  const manualTimer = buildManualTimer(t.log, 0n, {
     timeStep: SECONDS_PER_DAY,
     eventLoopIteration,
   });
+  
+  const priceData = createPriceData(10)
+  .map(x => (x).toFixed())
+  .map(x => BigInt(x));
+
+  t.is(priceData,priceData.sort());
+
   const services = await setupServicesAlt(
     t,
-    [500n, 1500n],
+   priceData,
     aeth.make(90n),
     manualTimer,
     SECONDS_PER_DAY,
@@ -136,16 +176,95 @@ test('interest on many vaults', async t => {
     52n * 7n * 24n * 3600n,
   );
 
-  const pa = services.priceAuthority;
+  const {timer,quoteAEthInRun,quoteIssuer,getQuoteGiven, priceAuthority: pa} = services;
+
+
+  const asserter = (actual, expected, msg = '') => t.deepEqual(actual, expected, `${actual} should equal ${expected} `)
+
+  const head = ([fst, ...snd]) => fst
+
+  const parseQuoteAmount = ({brand, value = []}) => ({
+    brand,
+    ...head(value)
+  })
+  
+  const firstPriceQuoteUpdater = quoteAEthInRun(aeth.make(1n))
+  const actualFirstUpdate = await E(firstPriceQuoteUpdater).getUpdateSince()
+
+  asserter(actualFirstUpdate.updateCount, 1n, 'upon initial update')
+
+
+asserter(!actualFirstUpdate.value.quoteAmount === false, true, 'when checked for a quoteAmount')
+asserter(!actualFirstUpdate.value.quotePayment === false, true, 'when checked for a quotePayment')
+asserter(parseQuoteAmount(actualFirstUpdate.value.quoteAmount), true, 'when checking the quoteAmount')
+
+
+  const firstQuotePayment = await getQuoteGiven(aeth.make(10n))
+
+
+  t.is(await E(quoteIssuer).getAmountOf(firstQuotePayment), await firstPriceQuoteUpdater, 'getQuoteGiven should return the correct value')
+  /**
+   * ## 
+   */
+
+  
+
+  const firstQuote = await E(pa).quoteGiven(aeth.make(1n), run.brand);
+  console.log({firstQuote})
+  await manualTimer.tickN(2);
+
+  const secondQuote = await E(pa).quoteGiven(aeth.make(1n), run.brand);
+  console.log({secondQuote})
+
+  const initialQuotePayment = await getQuoteGiven(aeth.make(100n))
+  const getQuotePaymentValue =  x =>  E(quoteIssuer).getAmountOf(x.quotePayment)
+
+
+  t.is(await E(quoteIssuer).getAmountOf(initialQuotePayment), firstQuote)
+
+  await E(timer).tickN(10)
+  
+  let currentTimestamp = await E(timer).getCurrentTimestamp();
+  console.log({timer, currentTimestamp})
+
+  console.log({services, quoteAEthInRun})
+
 
   t.is(pa, await pa);
   const { aethCollateralManager, vaultFactory, vfPublic, ...restc } =
     services.vaultFactory;
 
+    /**
+     *    updateCount: 1n,
+  -   value: {
+  -     quoteAmount: {
+  -       brand: Object @Alleged: quote brand {},
+  -       value: [
+  -         Object { … },
+  -       ],
+  -     },
+  -     quotePayment: Object @Alleged: quote payment {},
+  -   },
+     */
+
+  const getValue = ({value}) => value;
+  const getQuoteAmount = ({quoteAmount}) => quoteAmount;
+  const getQuotePayment = ({quotePayment}) => quotePayment;
+  const compose = (...fns) => initial => fns.reduceRight((val, fn) => fn(val), initial)
+  // const parsePriceQuote = (priceQuote = {}) => {
+  //   value: 
+  // }
   // Create a loan for Alice for 4700 Minted with 1100 aeth collateral
   const defaultCollateralAmount = aeth.make(1100n);
   const defaultIstWanted = run.make(4700n);
 
+  const makeAEthQuote = await quoteAEthInRun(defaultCollateralAmount)
+
+  const {value:{quoteAmount:qa1,quotePayment:qp1}} = await E(makeAEthQuote).getUpdateSince();
+
+  const isValue = obj => !obj.value ? obj : getValue(obj)
+  console.log('initialQuote::', { qa1 })
+  t.deepEqual(qa1, await E(quoteIssuer).getAmountOf(qp1))
   const defaultOfferArgs = {
     proposal: {
       give: { Collateral: defaultCollateralAmount },
@@ -155,6 +274,8 @@ test('interest on many vaults', async t => {
       Collateral: aeth.mint.mintPayment(defaultCollateralAmount),
     },
   };
+
+
   const handleMakeVault = (
     invitation,
     proposal = defaultOfferArgs.proposal,
@@ -196,6 +317,14 @@ test('interest on many vaults', async t => {
     publicNotifiers: { vault: aliceNotifier },
   } = await legacyOfferResult(aliceVaultSeat);
 
+  const {vault:aliceVaultTopic} = await E(aliceVault).getPublicTopics();
+
+  const m = await subscriptionTracker(t, aliceVaultTopic);
+
+  let lastOne = await m.getLastNotif()
+
+
+  console.log({lastOne})
   const debtAmount = await E(aliceVault).getCurrentDebt();
   const fee = ceilMultiplyBy(defaultIstWanted, rates.mintFee);
   t.deepEqual(
@@ -208,6 +337,16 @@ test('interest on many vaults', async t => {
   const proceeds = await E(aliceVaultSeat).getPayouts();
   t.deepEqual(lentAmount, defaultIstWanted, 'received 4700 Minted');
 
+  await manualTimer.tickN(4);
+  
+  await handleMakeVault(E(aliceVault).makeAdjustBalancesInvitation(), {
+    give: { Collateral: aeth.make(1_000_000n) },
+    },
+  {
+    Collateral: aeth.mint.mintPayment(aeth.make(1_000_000n)),
+  })
+
+  console.log({aliceVaultTopic})
   const runLent = await proceeds.Minted;
   t.truthy(
     AmountMath.isEqual(

@@ -26,6 +26,7 @@ import { observeNotifier } from './asyncIterableAdaptor.js';
  * @returns {StoredNotifier<T>}
  */
 export const makeStoredNotifier = (notifier, storageNode, marshaller) => {
+  console.log('notifier:::', { notifier, storageNode })
   assertAllDefined({ notifier, storageNode, marshaller });
 
   const marshallToStorage = makeSerializeToStorage(storageNode, marshaller);

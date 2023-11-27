@@ -152,6 +152,20 @@ const VaultStateShape = harden({
 });
 
 
+       
+const viewSeatDetails = seat => ({
+  proposal: {...seat.getProposal()},
+  currentAllocation: seat.getCurrentAllocation()
+});
+
+const inspectSeat = label => seat => {
+  console.group('inspecting seat #####', label);
+  console.log('--------------------------------')
+  console.log('@@@@@@ viewSeatDetails',viewSeatDetails(seat))
+  console.log('--------------------------------------')
+  console.groupEnd()
+  return seat
+}
 
 /**
  * @param {import('@agoric/ertp').Baggage} baggage
@@ -483,6 +497,7 @@ export const prepareVault = (baggage, makeRecorderKit, zcf) => {
           const { vaultSeat } = state;
           const fp = helper.fullProposal(clientSeat.getProposal());
 
+          console.log('inside adjustBalancesHook', inspectSeat('clientSeat')(clientSeat))
           if (
             allEmpty([
               fp.give.Collateral,
@@ -722,6 +737,11 @@ export const prepareVault = (baggage, makeRecorderKit, zcf) => {
           const { state, facets } = this;
           const { helper } = facets;
           helper.assertActive();
+
+   
+
+          console.log('inside vault::: makeAdjustBalancesInvitatipn')
+          inspectSeat('vaultSeat')(this.facets.self.getVaultSeat())
 
           return zcf.makeInvitation(
             seat => helper.adjustBalancesHook(seat),

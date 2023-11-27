@@ -5,6 +5,7 @@ import { E } from '@endo/eventual-send';
 
 import { makeDriverContext, makeManagerDriver } from './driver.js';
 import { makeNotifierFromSubscriber } from '@agoric/notifier';
+import { setupServices } from './helpers.js';
 
 /** @typedef {import('./driver.js').DriverContext & {}} Context */
 /** @type {import('ava').TestFn<Context>} */
@@ -14,12 +15,14 @@ const trace = makeTracer('TestVC');
 
 test.before(async t => {
   t.context = await makeDriverContext();
+  console.log('leverageCycleManager:::::', t.context)
   trace(t, 'CONTEXT');
 });
 
 test('leveraged loan', async t => {
   const { aeth, run, ...ctx } = t.context;
 
+  console.log({ctx,keys: Object.keys(t)})
   const md = await makeManagerDriver(t);
 
   const vd = await md.makeVaultDriver(aeth.make(100_000n));
