@@ -174,7 +174,7 @@ const trace = makeTracer('VM');
  * }}
  */
 // any b/c will be filled after start()
-const collateralEphemera = makeEphemeraProvider(() => /** @type {any} */ ({}));
+const collateralEphemera = makeEphemeraProvider(() => /** @type {any} */({}));
 
 /**
  * @param {import('@agoric/ertp').Baggage} baggage
@@ -258,7 +258,6 @@ export const prepareVaultManagerKit = (
       lockedQuote: undefined,
     });
   };
-
   const makeVaultManagerKitInternal = prepareExoClassKit(
     baggage,
     'VaultManagerKit',
@@ -699,11 +698,11 @@ export const prepareVaultManagerKit = (
           if (plan.transfersToVault.length > 0) {
             const transfers = plan.transfersToVault.map(
               ([vaultIndex, amounts]) =>
-                /** @type {TransferPart} */ ([
-                  liqSeat,
-                  vaultsInPlan[vaultIndex].getVaultSeat(),
-                  amounts,
-                ]),
+                /** @type {TransferPart} */([
+                liqSeat,
+                vaultsInPlan[vaultIndex].getVaultSeat(),
+                amounts,
+              ]),
             );
             atomicRearrange(zcf, harden(transfers));
           }
@@ -967,7 +966,14 @@ export const prepareVaultManagerKit = (
             E(storageNode).makeChildNode(`vaults`),
           ).makeChildNode(`vault${vaultId}`);
 
+          console.log('making vault::: baggage', {
+            keys: [...baggage.keys()],
+            debtMint: baggage.get('debtMint'),
+            collateralManagers: [...baggage.get('collateralManagers').keys()],
+            rewardPoolSeat: baggage.get('rewardPoolSeat'),
+          });
           const { self: vault } = makeVault(manager, vaultId, vaultStorageNode);
+          console.log({ vault });
           trace(state.collateralBrand, 'makeVaultKit made vault', vault);
 
           try {
@@ -1229,6 +1235,7 @@ export const provideAndStartVaultManagerKits = baggage => {
   const noKits = /** @type {VaultManagerKit[]} */ (harden([]));
 
   for (const kit of provide(baggage, key, () => noKits)) {
+    console.log('inside provide(baggage):::', { key });
     kit.helper.start();
   }
 

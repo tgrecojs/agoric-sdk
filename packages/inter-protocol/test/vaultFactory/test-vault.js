@@ -42,11 +42,17 @@ trace('makeZoe');
  * @param {string} sourceRoot
  */
 async function launch(zoeP, sourceRoot) {
+  console.log('inside launch::::::::::::', { zoe, sourceRoot });
   const contractUrl = await importMetaResolve(sourceRoot, import.meta.url);
   const contractPath = new URL(contractUrl).pathname;
+  console.log('----------------------', { contractPath });
   const contractBundle = await bundleSource(contractPath);
+  console.log('----------------------', { contractBundle });
+
   const installation = await E(zoeP).install(contractBundle);
-  const { creatorInvitation, creatorFacet, instance } = await E(
+  console.log('----------------------', { contractInstallation: installation });
+
+  const { creatorInvitation, creatorFacet, instance, ...rest } = await E(
     zoeP,
   ).startInstance(
     installation,
@@ -54,6 +60,12 @@ async function launch(zoeP, sourceRoot) {
     undefined,
     harden({ feeMintAccess }),
   );
+  console.log('############ creatorInvitation -------', { creatorInvitation });
+  console.log('############ creatorFacet -------', { creatorFacet });
+
+  console.log('############ instance -------', { instance });
+  console.log('############ REST -------', { rest });
+
   const {
     stableMint,
     collateralKit: { mint: collateralMint, brand: collateralBrand },
@@ -164,6 +176,7 @@ test('first', async t => {
 test('bad collateral', async t => {
   const { creatorSeat: offerKit } = await helperContract;
 
+  console.log('offerKit::::', { offerKit, helperContract });
   const { stableMint, collateralKit, vault } = testJig;
 
   // Our wrapper gives us a Vault which holds 50 Collateral, has lent out 70
@@ -173,6 +186,18 @@ test('bad collateral', async t => {
   const { brand: collateralBrand } = collateralKit;
   const { brand: stableBrand } = stableMint.getIssuerRecord();
 
+  const cf = (await helperContract).creatorFacet;
+
+  const invitationIssuer = await E(zoe).getInvitationIssuer();
+  const makeIstInviation = await E(cf).makeAdjustBalancesInvitation();
+
+  t.deepEqual(await E(invitationIssuer).isLive(makeIstInviation), true);
+  console.log(
+    'helperContract::creatorSeat',
+    (await helperContract).creatorSeat,
+  );
+  console.log('helperContract::makeIstInviation', makeIstInviation);
+  console.log('insopdect paymnet:::');
   t.deepEqual(
     vault.getCollateralAmount(),
     AmountMath.make(collateralBrand, 50n),

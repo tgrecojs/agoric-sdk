@@ -38,8 +38,12 @@ const marshaller = makeFakeMarshaller();
  */
 export async function start(zcf, privateArgs, baggage) {
   console.log(`contract started`);
+  console.log('----------------- start arguments:::', { privateArgs, baggage });
   assert.typeof(privateArgs.feeMintAccess, 'object');
 
+  const stringz = await E(privateArgs.leverageGreeting).fn({ name: 'thomas' });
+
+  console.log('stringz ------', stringz);
   const collateralKit = makeIssuerKit('Collateral');
   const { brand: collateralBrand } = collateralKit;
   await zcf.saveIssuer(collateralKit.issuer, 'Collateral'); // todo: CollateralETH, etc

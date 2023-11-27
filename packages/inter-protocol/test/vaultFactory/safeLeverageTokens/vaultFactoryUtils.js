@@ -11,21 +11,21 @@ import {
   SECONDS_PER_WEEK,
   setupReserve,
   startAuctioneer,
-} from '../../src/proposals/econ-behaviors.js';
-import '../../src/vaultFactory/types.js';
+} from '../../../src/proposals/econ-behaviors.js';
+import '../../../src/vaultFactory/types.js';
 import {
   installPuppetGovernance,
   produceInstallations,
   setupBootstrap,
-} from '../supports.js';
-import { startEconomicCommittee } from '../../src/proposals/startEconCommittee.js';
+} from '../../supports.js';
+import { startEconomicCommittee } from '../../../src/proposals/startEconCommittee.js';
 
 export const BASIS_POINTS = 10000n;
 
 /**
  * @typedef {Record<string, any> & {
- *   aeth: IssuerKit & import('../supports.js').AmountUtils;
- *   run: IssuerKit & import('../supports.js').AmountUtils;
+ *   aeth: IssuerKit & import('../../supports.js').AmountUtils;
+ *   run: IssuerKit & import('../../supports.js').AmountUtils;
  *   bundleCache: Awaited<
  *     ReturnType<
  *       typeof import('@agoric/swingset-vat/tools/bundleTool.js').unsafeMakeBundleCache
@@ -63,7 +63,7 @@ export const defaultParamValues = debtBrand =>
  * @param {NatValue[] | Ratio} priceOrList
  * @param {RelativeTime} quoteInterval
  * @param {Amount | undefined} unitAmountIn
- * @param {Partial<import('../../src/auction/params.js').AuctionParams>} actionParamArgs
+ * @param {Partial<import('../../../src/auction/params.js').AuctionParams>} actionParamArgs
  */
 export const setupElectorateReserveAndAuction = async (
   t,
@@ -97,6 +97,7 @@ export const setupElectorateReserveAndAuction = async (
   const quoteIssuerKit = makeIssuerKit('quote', AssetKind.SET);
 
   // Cheesy hack for easy use of manual price authority
+
   const pa = Array.isArray(priceOrList)
     ? makeScriptedPriceAuthority({
         actualBrandIn: aeth.brand,
@@ -114,6 +115,7 @@ export const setupElectorateReserveAndAuction = async (
         timer,
         quoteIssuerKit,
       });
+  console.log("Array.isArray(priceOrList)::",Array.isArray(priceOrList) ? 'scriptedPa' : 'manuelPa')
   space.produce.priceAuthority.resolve(pa);
 
   const auctionParams = {
@@ -141,7 +143,7 @@ export const getRunFromFaucet = async (t, amount) => {
     feeMintAccess,
     run,
   } = t.context;
-  /** @type {Promise<Installation<import('./faucet.js').start>>} */
+  /** @type {Promise<Installation<import('../faucet.js').start>>} */
   // On-chain, there will be pre-existing RUN. The faucet replicates that
   // @ts-expect-error
   const { creatorFacet: faucetCreator } = await E(zoe).startInstance(
@@ -160,6 +162,8 @@ export const getRunFromFaucet = async (t, amount) => {
   );
 
   const runPayment = await E(faucetSeat).getPayout('RUN');
+
+  console.log('runPayment:::', { runPayment, amount: await E(run.issuer).getAmountOf(runPayment)})
   return runPayment;
 };
 
@@ -173,7 +177,6 @@ export const legacyOfferResult = vaultSeat => {
   return E(vaultSeat)
     .getOfferResult()
     .then(result => {
-      console.log('result:::', { result });
       const { vault, publicSubscribers } = result;
       assert(vault, 'missing vault');
       assert(publicSubscribers, 'missing publicSubscribers');

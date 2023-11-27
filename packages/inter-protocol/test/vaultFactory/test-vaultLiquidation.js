@@ -222,6 +222,38 @@ const setupServices = async (
     /** @type {Promise<ManualPriceAuthority>} */ (consume.priceAuthority),
     E(aethVaultManagerP).getPublicFacet(),
   ]);
+
+  console.group('################  VaultDirector::PublicFacet  ###########');
+
+  console.log('--------------------  vfPublic:::::::::', { vfPublic });
+  console.log('###################################################');
+  console.log(' vfPublic.getDebtIssuer() -->', { vfPublic });
+  console.log('---------------------------------------------------');
+  console.log(' E(aethVaultManager).getPublicFacet() -->', {
+    aethVaultManagerPublic: await E(aethVaultManager).getPublicFacet(),
+  });
+  console.log(
+    '---------     E(E(vfPublic).getCollateralManager(aeth.brand)).makeVaultInvitation() ',
+    {
+      makeVaultInvitation: await E(
+        E(vfPublic).getCollateralManager(aeth.brand),
+      ).makeVaultInvitation(),
+    },
+  );
+  console.groupEnd();
+  /*
+ getCollateralManager: M.call(BrandShape).returns(M.remotable()),
+        getDebtIssuer: M.call().returns(IssuerShape),
+        getSubscription: M.call({ collateralBrand: BrandShape }).returns(
+          SubscriberShape,
+        ),
+        getElectorateSubscription: M.call().returns(SubscriberShape),
+        getGovernedParams: M.call({ collateralBrand: BrandShape }).returns(
+          M.record(),
+        ),
+        getInvitationAmount: M.call(M.string()).returns(AmountShape),
+        getPublicTopics: M.call().returns(TopicsRecordShape),
+        */
   trace(t, 'pa', {
     governorInstance,
     vaultFactory,
@@ -700,6 +732,8 @@ test('liquidate two loans', async t => {
   let shortfallBalance = 0n;
 
   const cm = await E(aethVaultManager).getPublicFacet();
+
+  console.log('collateralManageer ::: aeth brand::::::', { cm });
   const aethVaultMetrics = await vaultManagerMetricsTracker(t, cm);
   await aethVaultMetrics.assertInitial({
     // present

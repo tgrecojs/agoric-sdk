@@ -39,6 +39,10 @@ export const prepareVaultKit = (baggage, makeRecorderKit) => {
       vault: holder,
       vaultUpdater: helper.getUpdater(),
     });
+    console.log('inside makeVaultKit :::::::: vault ', {
+      vaultKit,
+      vault: vaultKit.vault,
+    });
     return vaultKit;
   };
   return makeVaultKit;

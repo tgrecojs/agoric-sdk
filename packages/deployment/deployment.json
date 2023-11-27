@@ -1,0 +1,66 @@
+{
+  "PLACEMENTS": [
+    [
+      "docker1",
+      {
+        "default": 2
+      }
+    ],
+    [
+      "docker2",
+      {
+        "default": 3
+      }
+    ],
+    [
+      "docker3",
+      {
+        "default": 4
+      }
+    ]
+  ],
+  "PLACEMENT_PROVIDER": {
+    "docker1": "docker",
+    "docker2": "docker",
+    "docker3": "docker"
+  },
+  "SSH_PRIVATE_KEY_FILE": "id_ecdsa",
+  "DETAILS": {
+    "VOLUMES": {
+      "docker1": [],
+      "docker2": [],
+      "docker3": []
+    }
+  },
+  "OFFSETS": {
+    "docker1": 0,
+    "docker2": 0,
+    "docker3": 0
+  },
+  "ROLES": {
+    "docker1": "validator",
+    "docker2": "peer",
+    "docker3": "seed"
+  },
+  "DATACENTERS": {
+    "docker1": [
+      "default",
+      "default"
+    ],
+    "docker2": [
+      "default",
+      "default",
+      "default"
+    ],
+    "docker3": [
+      "default",
+      "default",
+      "default",
+      "default"
+    ]
+  },
+  "PROVIDER_NEXT_INDEX": {
+    "docker": 3
+  },
+  "NETWORK_NAME": "deployment"
+}
