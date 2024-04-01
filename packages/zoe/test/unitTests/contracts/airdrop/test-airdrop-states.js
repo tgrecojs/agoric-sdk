@@ -16,7 +16,7 @@ const AIRDROP_STATES = {
 };
 const { OPEN, EXPIRED, PREPARED, INITIALIZED, RESTARTING } = AIRDROP_STATES;
 
-test('ERTP Airdrop state machine', async t => {
+test('ERTP Airdrop state machine', t => {
   const startState = INITIALIZED;
   const allowedTransitions = [
     [startState, [PREPARED]],
@@ -25,7 +25,34 @@ test('ERTP Airdrop state machine', async t => {
     [RESTARTING, [OPEN]],
     [EXPIRED, []],
   ];
+
   const stateMachine = makeStateMachine(startState, allowedTransitions);
   t.is(stateMachine.getStatus(), INITIALIZED);
-  t.is(stateMachine.transitionTo(EXPIRED), new Error('Check failed.'));
+
+  stateMachine.transitionTo(PREPARED);
+
+  t.is(
+    stateMachine.getStatus(),
+    PREPARED,
+    'stateMachine should transition into a prepared state ',
+  );
+
+  t.deepEqual(
+    stateMachine.getStatus(),
+    PREPARED,
+    'stateMachine should transition into a prepared state ',
+  );
+  stateMachine.transitionTo(OPEN);
+  t.deepEqual(
+    stateMachine.getStatus(),
+    OPEN,
+    'stateMachine should transition to an OPEN state',
+  );
+
+  stateMachine.transitionTo(EXPIRED);
+  t.deepEqual(
+    stateMachine.getStatus(),
+    EXPIRED,
+    'stateMachine should transition to an claim-window-expired state',
+  );
 });

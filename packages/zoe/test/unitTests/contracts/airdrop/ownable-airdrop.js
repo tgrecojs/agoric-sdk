@@ -1,27 +1,45 @@
 import { M } from '@endo/patterns';
 import { makeDurableZone } from '@agoric/zone/durable.js';
 import { E } from '@endo/eventual-send';
+import { Far } from '@endo/marshal';
 import { prepareOwnable } from '../../../../src/contractSupport/prepare-ownable.js';
 
 /**
  * @param {ZCF} zcf
- * @param {{ count: bigint}} privateArgs
+ * @param {{ purse: Purse, timer: import('@agoric/swingset-vat/tools/manual-timer.js').TimerService,}} privateArgs
  * @param {import('@agoric/vat-data').Baggage} baggage
  */
 export const start = async (zcf, privateArgs, baggage) => {
   const zone = makeDurableZone(baggage, 'rootZone');
-  const { AirdropUtils } = zcf.getTerms();
+  const { AirdropUtils, startTime } = zcf.getTerms();
 
+  assert(startTime > 0n, 'startTime must be a BigInt larger than 0n.');
   const claimedAccountsStore = zone.setStore('claimed users', {
     durable: true,
   });
-  const [distributionSchedule, verify] = await Promise.all([
-    E(AirdropUtils).getSchedule(),
-    E(AirdropUtils).getVerificationFn(),
-  ]);
-  const { count: startCount = 0n, purse: airdropPurse } = privateArgs;
-  assert.typeof(startCount, 'bigint');
+  const [{ stateMachine, states }, distributionSchedule, verify] =
+    await Promise.all([
+      E(AirdropUtils).getStateMachine(),
+      E(AirdropUtils).getSchedule(),
+      E(AirdropUtils).getVerificationFn(),
+    ]);
 
+  console.log({ stateMachine, states });
+  const { count: startCount = 0n, purse: airdropPurse, timer } = privateArgs;
+  assert.typeof(startCount, 'bigint');
+  assert(airdropPurse, 'contract must be estarted with a purse');
+  assert(timer, 'contract must be estarted with a timer');
+
+  void E(timer).setWakeup(
+    startTime,
+    Far('Waker', {
+      wake(ts) {
+        stateMachine.transitionTo(states.OPEN);
+        console.log('Airdrop is officially opened');
+        conwsole.log('Current state::', stateMachine.getStatus(), ts);
+      },
+    }),
+  );
   const makeUnderlyingAirdropKit = zone.exoClassKit(
     'OwnableAirdrop',
     {
@@ -49,6 +67,7 @@ export const start = async (zcf, privateArgs, baggage) => {
      * @param {bigint} count
      * @param {Purse} tokenPurse
      * @param {Array} schedule
+     * @param store
      */
     (count, tokenPurse, schedule, store) => ({
       count,
@@ -58,10 +77,15 @@ export const start = async (zcf, privateArgs, baggage) => {
       }),
       internalPurse: tokenPurse,
       claimedAccounts: store,
+      status: stateMachine.transitionTo(states.PREPARED),
     }),
     {
       airdrop: {
         claim() {
+          assert(
+            stateMachine.getStatus() === states.open,
+            'Claim attempt failed.',
+          );
           /** @type {OfferHandler} */
           const claimHandler = async (seat, offerArgs) => {
             // TODO

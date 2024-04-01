@@ -41,6 +41,25 @@ export const createDistributionConfig = (array = defaultDistributionArray) =>
 harden(createDistributionConfig);
 
 const airdropBehaviors = {};
+const AIRDROP_STATES = {
+  INITIALIZED: 'initialized',
+  PREPARED: 'prepared',
+  OPEN: 'claim-window-open',
+  EXPIRED: 'claim-window-expired',
+  CLOSED: 'claiming-closed',
+  RESTARTING: 'restarting',
+};
+const { OPEN, EXPIRED, PREPARED, INITIALIZED, RESTARTING } = AIRDROP_STATES;
+
+const startState = INITIALIZED;
+const allowedTransitions = [
+  [startState, [PREPARED]],
+  [PREPARED, [OPEN]],
+  [OPEN, [EXPIRED, RESTARTING]],
+  [RESTARTING, [OPEN]],
+  [EXPIRED, []],
+];
+const stateMachine = makeStateMachine(startState, allowedTransitions);
 
 const hasSchedule = (schedule = []) => ({ schedule });
 const createMerkleHash =
@@ -87,12 +106,13 @@ test.beforeEach('setup', async t => {
   vatAdminState.installBundle('b1-ownable-Airdrop', bundle);
   /** @type {Installation<import('./ownable-airdrop.js').start>} */
   const installation = await E(zoe).installBundleID('b1-ownable-Airdrop');
-
+  const timer = makeTimer(t.log, 0n);
   const schedule = harden(createDistributionConfig());
   const instance = await E(zoe).startInstance(
     installation,
     undefined,
     harden({
+      startTime: 10_000n,
       AirdropUtils: Far('AirdropUtils', {
         getSchedule() {
           return schedule;
@@ -100,12 +120,15 @@ test.beforeEach('setup', async t => {
         getVerificationFn() {
           return x => verify(x);
         },
+        getStateMachine() {
+          return { stateMachine, states: AIRDROP_STATES };
+        },
       }),
     }),
     harden({
       count: 3n,
       purse: AIRDROP_PURSE,
-      timer: makeTimer(t.log, 0n),
+      timer,
     }),
     'c1-ownable-Airdrop',
   );
@@ -138,6 +161,7 @@ test.beforeEach('setup', async t => {
     invitationIssuer,
     invitationBrand,
     zoe,
+    timer,
     installation,
     bundle,
   };
@@ -151,6 +175,7 @@ test('zoe - ownable-Airdrop contract', async t => {
     invitationIssuer,
     invitationBrand,
     installation,
+    timer,
   } = t.context;
   // await t.throwsAsync(
   //   // @ts-expect-error method of underlying that ownable doesn't allow
@@ -164,6 +189,7 @@ test('zoe - ownable-Airdrop contract', async t => {
   // the following tests could invoke `firstAirdrop` and `viewAirdrop`
   // synchronously. But we don't in order to better model the user
   // code that might be remote.
+  await E(timer).advanceBy(2_300n);
 
   const methods = await E(firstAirdrop)[GET_METHOD_NAMES]();
   t.deepEqual(methods.length, 6);
@@ -174,6 +200,7 @@ test('zoe - ownable-Airdrop contract', async t => {
   t.deepEqual(await E(firstAirdrop).getInvitationCustomDetails(), {
     count: 4n,
   });
+  await E(timer).advanceBy(11_000n);
 
   const invite = await E(firstAirdrop).makeTransferInvitation();
 
