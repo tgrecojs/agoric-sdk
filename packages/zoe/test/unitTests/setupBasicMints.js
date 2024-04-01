@@ -4,10 +4,13 @@ import { makeZoeForTest } from '../../tools/setup-zoe.js';
 import { makeFakeVatAdmin } from '../../tools/fakeVatAdmin.js';
 
 export const setup = () => {
+  const memeKit = makeIssuerKit('memes');
+
   const moolaKit = makeIssuerKit('moola');
   const simoleanKit = makeIssuerKit('simoleans');
   const bucksKit = makeIssuerKit('bucks');
   const allIssuerKits = {
+    memes: memeKit,
     moola: moolaKit,
     simoleans: simoleanKit,
     bucks: bucksKit,
@@ -26,6 +29,9 @@ export const setup = () => {
   const makeSimpleMake = brand => value => AmountMath.make(brand, value);
 
   const result = {
+    memeIssuer: memeKit.issuer,
+    memeMint: memeKit.mint,
+    memeKit,
     moolaIssuer: moolaKit.issuer,
     moolaMint: moolaKit.mint,
     moolaKit,
@@ -36,6 +42,7 @@ export const setup = () => {
     bucksMint: bucksKit.mint,
     bucksKit,
     brands,
+    memes: makeSimpleMake(memeKit.brand),
     moola: makeSimpleMake(moolaKit.brand),
     simoleans: makeSimpleMake(simoleanKit.brand),
     bucks: makeSimpleMake(bucksKit.brand),
