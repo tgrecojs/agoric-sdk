@@ -17,7 +17,7 @@ import { makeStateMachine } from '../../../../src/contractSupport/stateMachine.j
 const filename = new URL(import.meta.url).pathname;
 const dirname = path.dirname(filename);
 
-const root = `${dirname}/ownable-airdrop.js`;
+const root = `${dirname}/airdrop.js`;
 
 const defaultDistributionArray = [
   { windowLength: 259_200n, tokenQuantity: 10_000n },

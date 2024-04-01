@@ -5,6 +5,36 @@ import { Far } from '@endo/marshal';
 import { prepareOwnable } from '../../../../src/contractSupport/prepare-ownable.js';
 
 /**
+ * @param arg
+ * @param keyName
+ * @typedef {object} EpochDetails
+ * @property {bigint} windowLength Length of epoch in seconds. This value is used by the contract's timerService to schedule a wake up that will fire once all of the seconds in an epoch have elapsed
+ * @property {bigint} tokenQuantity The total number of tokens recieved by each user who claims during a particular epoch.
+ * @property {bigint} index The index of a particular epoch.
+ * @property {number} inDays Length of epoch formatted in total number of days
+ */
+const startupAssertion = (arg, keyName) =>
+  assert(
+    arg,
+    `Contract has been started without required property: ${keyName}.`,
+  );
+
+const makeWaker = (name, func) => {
+  return Far(name, {
+    wake: timestamp => func(timestamp),
+  });
+};
+
+const createWakeup = async (timer, wakeUpTime, timeWaker, cancelTokenMaker) => {
+  const cancelToken = cancelTokenMaker();
+  await E(timer).setWakeup(wakeUpTime, timeWaker, cancelToken);
+};
+const makeCancelTokenMaker = name => {
+  let tokenCount = 1;
+
+  return () => Far(`cancelToken-${name}-${(tokenCount += 1)}`, {});
+};
+/**
  * @param {ZCF} zcf
  * @param {{ purse: Purse, timer: import('@agoric/swingset-vat/tools/manual-timer.js').TimerService,}} privateArgs
  * @param {import('@agoric/vat-data').Baggage} baggage
@@ -24,6 +54,7 @@ export const start = async (zcf, privateArgs, baggage) => {
       E(AirdropUtils).getVerificationFn(),
     ]);
 
+  const cancelTokenMaker = makeCancelTokenMaker('airdrop-campaign');
   await stateMachine.transitionTo(states.PREPARED);
   console.log({ stateMachine, states });
   const { count: startCount = 0n, purse: airdropPurse, timer } = privateArgs;
@@ -33,9 +64,14 @@ export const start = async (zcf, privateArgs, baggage) => {
 
   console.log('ZONE API::::', { zone });
   const makeUnderlyingAirdropKit = zone.exoClassKit(
-    'Creator',
+    'Airdrop Campaign',
     {
-      airdrop: M.interface('OwnableAirdrop', {
+      helper: M.interface('Helper', {
+        cancelTimer: M.call().returns(M.promise()),
+        getDistributionEpochDetails: M.call().returns(M.record()),
+        handleUpdateEpoch: M.call().returns(M.string()),
+      }),
+      creator: M.interface('OwnableAirdrop', {
         prepareAirdropCampaign: M.call().returns(M.promise()),
         claim: M.call().returns(M.promise()),
         incr: M.call().returns(M.bigint()),
@@ -60,6 +96,7 @@ export const start = async (zcf, privateArgs, baggage) => {
      * @param store
      */
     (count, tokenPurse, schedule, dsm, store) => ({
+      currentCancelToken: cancelTokenMaker(),
       count,
       distributionSchedule: harden({
         currentEpoch: 0,
@@ -77,7 +114,39 @@ export const start = async (zcf, privateArgs, baggage) => {
       }),
     }),
     {
-      airdrop: {
+      helper: {
+        async cancelTimer() {
+          await E(timer).cancel(this.state.currentCancelToken);
+        },
+        getDistributionEpochDetails() {
+          return this.state.distributionSchedule.schedule[
+            this.state.distributionSchedule.currentEpoch
+          ];
+        },
+        handleUpdateEpoch() {
+          const epochDetails = this.facets.helper.getDistributionEpochDetails();
+          console.log(
+            'cancelToken ::: BEFORE UPDATE',
+            this.state.currentCancelToken,
+          );
+          console.log('epochDetails ::: BEFORE UPDATE', epochDetails);
+
+          this.state.currentCancelToken = cancelTokenMaker();
+          void E(timer).setWakeup(
+            epochDetails.windowLength,
+            Far('Epoch Change Waker', {
+              wake: () => this.facets.helper.handleUpdateEpoch(),
+            }),
+            this.state.currentCancelToken,
+          );
+          console.log(
+            'cancelToken ::: AFTER UPDATE',
+            this.state.currentCancelToken,
+          );
+          return `Successfully updated Airdrop Epoch. Current epoch #${this.state.distributionSchedule.currentEpoch}`;
+        },
+      },
+      creator: {
         async prepareAirdropCampaign() {
           console.group('---------- inside prepareAirdropCampaign----------');
           console.log('------------------------');
@@ -88,11 +157,18 @@ export const start = async (zcf, privateArgs, baggage) => {
           console.log('------------------------');
           console.log('this.state.status::', this.state.dsm);
           console.log('------------------------');
+          console.log(
+            'this.state.currentCancelToken::',
+            this.state.currentCancelToken,
+          );
+
+          console.log('------------------------');
           console.groupEnd();
 
           const handleStateTransition = ts => {
             this.state.dsm.transitionTo(states.OPEN);
             console.log('Current state::', this.state.dsm.getStatus(), ts);
+            this.facets.helper.handleUpdateEpoch();
           };
           void E(timer).setWakeup(
             startTime,
@@ -101,6 +177,7 @@ export const start = async (zcf, privateArgs, baggage) => {
                 handleStateTransition(ts);
               },
             }),
+            this.state.currentCancelToken,
           );
         },
         claim() {
@@ -157,7 +234,7 @@ export const start = async (zcf, privateArgs, baggage) => {
     },
   );
 
-  const { airdrop: underlyingAirdrop, viewer } = makeUnderlyingAirdropKit(
+  const { creator, viewer } = makeUnderlyingAirdropKit(
     startCount,
 
     airdropPurse,
@@ -167,7 +244,7 @@ export const start = async (zcf, privateArgs, baggage) => {
   );
 
   return harden({
-    creatorFacet: underlyingAirdrop,
+    creatorFacet: creator,
     publicFacet: viewer,
   });
 };
