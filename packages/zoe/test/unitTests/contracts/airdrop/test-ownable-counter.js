@@ -177,6 +177,8 @@ test('zoe - ownable-Airdrop contract', async t => {
     installation,
     timer,
   } = t.context;
+
+  await E(firstAirdrop).prepareAirdropCampaign();
   // await t.throwsAsync(
   //   // @ts-expect-error method of underlying that ownable doesn't allow
   //   E(firstAirdrop).toBeAttenuated(),
@@ -190,19 +192,26 @@ test('zoe - ownable-Airdrop contract', async t => {
   // synchronously. But we don't in order to better model the user
   // code that might be remote.
   await E(timer).advanceBy(2_300n);
+  t.is(
+    await E(viewAirdrop).getStatus(),
+    AIRDROP_STATES.PREPARED,
+    'Contract state machine should update from initialized to prepared upon successful startup.',
+  );
 
   const methods = await E(firstAirdrop)[GET_METHOD_NAMES]();
   t.deepEqual(methods.length, 6);
 
   t.is(await E(firstAirdrop).incr(), 4n);
-  t.is(await E(viewAirdrop).view(), 4n);
 
   t.deepEqual(await E(firstAirdrop).getInvitationCustomDetails(), {
     count: 4n,
   });
   await E(timer).advanceBy(11_000n);
-
-  const invite = await E(firstAirdrop).makeTransferInvitation();
+  t.deepEqual(
+    await E(viewAirdrop).getStatus(),
+    AIRDROP_STATES.OPEN,
+    `Contract state machine should update from ${AIRDROP_STATES.PREPARED} to ${AIRDROP_STATES.OPEN} when startTime is reached.`,
+  );
 
   t.deepEqual(await E(firstAirdrop)[GET_METHOD_NAMES](), [
     '__getInterfaceGuard__',
@@ -210,48 +219,10 @@ test('zoe - ownable-Airdrop contract', async t => {
     'claim',
     'getInvitationCustomDetails',
     'incr',
-    'makeTransferInvitation',
+    'prepareAirdropCampaign',
   ]);
 
-  await t.throwsAsync(() => E(firstAirdrop).getInvitationCustomDetails(), {
-    message: '"OwnableAirdrop_caretaker" revoked',
-  });
-  await t.throwsAsync(() => E(firstAirdrop).incr(), {
-    message: '"OwnableAirdrop_caretaker" revoked',
-  });
   t.is(await E(viewAirdrop).view(), 4n);
 
-  const inviteAmount = await E(invitationIssuer).getAmountOf(invite);
-
-  t.deepEqual(inviteAmount, {
-    brand: invitationBrand,
-    value: [
-      {
-        description: 'transfer',
-        installation,
-        handle: inviteAmount.value[0].handle,
-        instance: inviteAmount.value[0].instance,
-        customDetails: {
-          count: 4n,
-        },
-      },
-    ],
-  });
-
-  const reviveAirdropSeat = await E(zoe).offer(invite);
-
-  const Airdrop2 = await E(reviveAirdropSeat).getOfferResult();
-  t.is(await E(reviveAirdropSeat).hasExited(), true);
-
   t.is(await E(viewAirdrop).view(), 4n);
-  t.deepEqual(await E(Airdrop2).getInvitationCustomDetails(), {
-    count: 4n,
-  });
-
-  t.is(await E(Airdrop2).incr(), 5n);
-
-  t.is(await E(viewAirdrop).view(), 5n);
-  t.deepEqual(await E(Airdrop2).getInvitationCustomDetails(), {
-    count: 5n,
-  });
 });

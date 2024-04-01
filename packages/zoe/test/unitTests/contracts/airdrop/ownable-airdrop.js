@@ -24,40 +24,28 @@ export const start = async (zcf, privateArgs, baggage) => {
       E(AirdropUtils).getVerificationFn(),
     ]);
 
+  await stateMachine.transitionTo(states.PREPARED);
   console.log({ stateMachine, states });
   const { count: startCount = 0n, purse: airdropPurse, timer } = privateArgs;
   assert.typeof(startCount, 'bigint');
   assert(airdropPurse, 'contract must be estarted with a purse');
   assert(timer, 'contract must be estarted with a timer');
 
-  void E(timer).setWakeup(
-    startTime,
-    Far('Waker', {
-      wake(ts) {
-        stateMachine.transitionTo(states.OPEN);
-        console.log('Airdrop is officially opened');
-        conwsole.log('Current state::', stateMachine.getStatus(), ts);
-      },
-    }),
-  );
+  console.log('ZONE API::::', { zone });
   const makeUnderlyingAirdropKit = zone.exoClassKit(
-    'OwnableAirdrop',
+    'Creator',
     {
-      airdrop: M.interface(
-        'OwnableAirdrop',
-        {
-          claim: M.call().returns(M.promise()),
-          incr: M.call().returns(M.bigint()),
-          // required by makePrepareOwnableClass
-          getInvitationCustomDetails: M.call().returns(
-            harden({
-              count: M.bigint(),
-            }),
-          ),
-          toBeAttenuated: M.call().returns(),
-        },
-        { sloppy: true },
-      ),
+      airdrop: M.interface('OwnableAirdrop', {
+        prepareAirdropCampaign: M.call().returns(M.promise()),
+        claim: M.call().returns(M.promise()),
+        incr: M.call().returns(M.bigint()),
+        // required by makePrepareOwnableClass
+        getInvitationCustomDetails: M.call().returns(
+          harden({
+            count: M.bigint(),
+          }),
+        ),
+      }),
       viewer: M.interface('ViewAirdrop', {
         view: M.call().returns(M.bigint()),
         getStatus: M.call().returns(M.string()),
@@ -67,9 +55,11 @@ export const start = async (zcf, privateArgs, baggage) => {
      * @param {bigint} count
      * @param {Purse} tokenPurse
      * @param {Array} schedule
+     * @param stateMachine
+     * @param dsm
      * @param store
      */
-    (count, tokenPurse, schedule, store) => ({
+    (count, tokenPurse, schedule, dsm, store) => ({
       count,
       distributionSchedule: harden({
         currentEpoch: 0,
@@ -77,10 +67,42 @@ export const start = async (zcf, privateArgs, baggage) => {
       }),
       internalPurse: tokenPurse,
       claimedAccounts: store,
-      status: stateMachine.transitionTo(states.PREPARED),
+      dsm: Far('state machine', {
+        getStatus() {
+          return dsm.getStatus();
+        },
+        transitionTo(state) {
+          return dsm.transitionTo(state);
+        },
+      }),
     }),
     {
       airdrop: {
+        async prepareAirdropCampaign() {
+          console.group('---------- inside prepareAirdropCampaign----------');
+          console.log('------------------------');
+          console.log(
+            'this.state.distributionSchedulew::',
+            await E(this.state.dsm).getStatus(),
+          );
+          console.log('------------------------');
+          console.log('this.state.status::', this.state.dsm);
+          console.log('------------------------');
+          console.groupEnd();
+
+          const handleStateTransition = ts => {
+            this.state.dsm.transitionTo(states.OPEN);
+            console.log('Current state::', this.state.dsm.getStatus(), ts);
+          };
+          void E(timer).setWakeup(
+            startTime,
+            Far('Waker', {
+              wake(ts) {
+                handleStateTransition(ts);
+              },
+            }),
+          );
+        },
         claim() {
           assert(
             stateMachine.getStatus() === states.open,
@@ -122,11 +144,10 @@ export const start = async (zcf, privateArgs, baggage) => {
             count,
           });
         },
-        toBeAttenuated() {},
       },
       viewer: {
         getStatus() {
-          return this.state.status;
+          return this.state.dsm.getStatus();
         },
         view() {
           const { count } = this.state;
@@ -136,25 +157,17 @@ export const start = async (zcf, privateArgs, baggage) => {
     },
   );
 
-  const makeOwnableAirdrop = prepareOwnable(
-    zone,
-    (...args) => zcf.makeInvitation(...args),
-    'OwnableAirdrop',
-    /** @type {const} */ (['claim', 'incr', 'getInvitationCustomDetails']),
-  );
-
   const { airdrop: underlyingAirdrop, viewer } = makeUnderlyingAirdropKit(
     startCount,
 
     airdropPurse,
     distributionSchedule,
+    stateMachine,
     claimedAccountsStore,
   );
 
-  const ownableAirdrop = makeOwnableAirdrop(underlyingAirdrop);
-
   return harden({
-    creatorFacet: ownableAirdrop,
+    creatorFacet: underlyingAirdrop,
     publicFacet: viewer,
   });
 };
