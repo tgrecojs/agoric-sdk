@@ -8,6 +8,8 @@ import { Far, GET_METHOD_NAMES } from '@endo/marshal';
 
 import { buildManualTimer } from '@agoric/swingset-vat/tools/manual-timer.js';
 import { eventLoopIteration } from '@agoric/internal/src/testing-utils.js';
+import { AmountMath } from '@agoric/ertp';
+import { TimeMath } from '@agoric/time';
 import { makeZoeForTest } from '../../../../tools/setup-zoe.js';
 import { makeFakeVatAdmin } from '../../../../tools/fakeVatAdmin.js';
 import { installationPFromSource } from '../../installFromSource.js';
@@ -19,13 +21,22 @@ const dirname = path.dirname(filename);
 
 const root = `${dirname}/airdrop.js`;
 
+const defaultIntervals = [2_300n, 3_500n, 5_000n, 11_000n, 150_000n, 175_000n];
+
 const defaultDistributionArray = [
-  { windowLength: 259_200n, tokenQuantity: 10_000n },
+  { windowLength: 159_200n, tokenQuantity: 10_000n },
   { windowLength: 864_000n, tokenQuantity: 6_000n },
   { windowLength: 864_000n, tokenQuantity: 3_000n },
   { windowLength: 864_000n, tokenQuantity: 1_500n },
   { windowLength: 864_000n, tokenQuantity: 750n },
 ];
+
+const composeM =
+  method =>
+  (...ms) =>
+    ms.reduce((f, g) => x => g(x)[method](f));
+const composePromises = composeM('then');
+
 const verify = address => assert(address[0] !== 'a');
 
 export const createDistributionConfig = (array = defaultDistributionArray) =>
@@ -39,7 +50,6 @@ export const createDistributionConfig = (array = defaultDistributionArray) =>
   );
 
 harden(createDistributionConfig);
-
 const airdropBehaviors = {};
 const AIRDROP_STATES = {
   INITIALIZED: 'initialized',
@@ -83,6 +93,7 @@ test.beforeEach('setup', async t => {
   const {
     memeMint,
     memeIssuer,
+    memeKit,
     memes,
     moola,
     simoleans,
@@ -110,10 +121,13 @@ test.beforeEach('setup', async t => {
   const schedule = harden(createDistributionConfig());
   const instance = await E(zoe).startInstance(
     installation,
-    undefined,
+    { Token: memeIssuer },
     harden({
       startTime: 10_000n,
       AirdropUtils: Far('AirdropUtils', {
+        makeAmount() {
+          return x => memes(x);
+        },
         getSchedule() {
           return schedule;
         },
@@ -155,6 +169,7 @@ test.beforeEach('setup', async t => {
   //   timer: manualTimer,
   // });
   t.context = {
+    timeIntervals: defaultIntervals,
     instance,
     creatorFacet: instance.creatorFacet,
     publicFacet: instance.publicFacet,
@@ -164,13 +179,16 @@ test.beforeEach('setup', async t => {
     timer,
     installation,
     bundle,
+    schedule,
   };
 });
 
 test('zoe - ownable-Airdrop contract', async t => {
   const {
-    creatorFacet: firstAirdrop,
-    publicFacet: viewAirdrop,
+    schedule: distributionSchedule,
+    timeIntervals,
+    creatorFacet,
+    publicFacet,
     zoe,
     invitationIssuer,
     invitationBrand,
@@ -178,51 +196,101 @@ test('zoe - ownable-Airdrop contract', async t => {
     timer,
   } = t.context;
 
-  await E(firstAirdrop).prepareAirdropCampaign();
+  await E(creatorFacet).prepareAirdropCampaign();
   // await t.throwsAsync(
   //   // @ts-expect-error method of underlying that ownable doesn't allow
-  //   E(firstAirdrop).toBeAttenuated(),
+  //   E(creatorFacet).toBeAttenuated(),
   //   {
   //     message:
   //       'target has no method "toBeAttenuated", has ["__getInterfaceGuard__","__getMethodNames__", "claim", "getInvitationCustomDetails","incr","makeTransferInvitation"]',
   //   },
   // );
 
-  // the following tests could invoke `firstAirdrop` and `viewAirdrop`
+  const head = ([x] = []) => x;
+  const tail = ([_, ...xs]) => xs;
+
+  const compose =
+    (...fns) =>
+    initialValue =>
+      fns.reduceRight((acc, val) => val(acc), initialValue);
+
+  const getProp = prop => obj => obj[prop];
+  const getWindowLength = compose(getProp('windowLength'), head);
+  t.deepEqual(
+    head(timeIntervals),
+    2_300n,
+    'head function given an array should return the first item in the array.',
+  );
+  // the following tests could invoke `creatorFacet` and `publicFacet`
   // synchronously. But we don't in order to better model the user
   // code that might be remote.
-  await E(timer).advanceBy(2_300n);
+  const [TWENTY_THREE_HUNDRED, ELEVEN_THOUSAND] = [2_300n, 11_000n];
+  await E(timer).advanceBy(TWENTY_THREE_HUNDRED);
   t.is(
-    await E(viewAirdrop).getStatus(),
+    await E(publicFacet).getStatus(),
     AIRDROP_STATES.PREPARED,
     'Contract state machine should update from initialized to prepared upon successful startup.',
   );
 
-  const methods = await E(firstAirdrop)[GET_METHOD_NAMES]();
-  t.deepEqual(methods.length, 6);
+  const methods = await E(creatorFacet)[GET_METHOD_NAMES]();
 
-  t.is(await E(firstAirdrop).incr(), 4n);
-
-  t.deepEqual(await E(firstAirdrop).getInvitationCustomDetails(), {
-    count: 4n,
-  });
-  await E(timer).advanceBy(11_000n);
+  await E(timer).advanceBy(ELEVEN_THOUSAND);
   t.deepEqual(
-    await E(viewAirdrop).getStatus(),
+    await E(publicFacet).getStatus(),
     AIRDROP_STATES.OPEN,
     `Contract state machine should update from ${AIRDROP_STATES.PREPARED} to ${AIRDROP_STATES.OPEN} when startTime is reached.`,
   );
 
-  t.deepEqual(await E(firstAirdrop)[GET_METHOD_NAMES](), [
-    '__getInterfaceGuard__',
-    '__getMethodNames__',
-    'claim',
-    'getInvitationCustomDetails',
-    'incr',
-    'prepareAirdropCampaign',
-  ]);
+  let schedule = distributionSchedule;
+  const { timerBrand, absValue: absValueAtStartTime } =
+    await E(timer).getCurrentTimestamp();
 
-  t.is(await E(viewAirdrop).view(), 4n);
+  const add = x => y => x + y;
 
-  t.is(await E(viewAirdrop).view(), 4n);
+  const firstEpochLength = getWindowLength(schedule);
+
+  const createDistrubtionWakeupTime =
+    add(firstEpochLength)(absValueAtStartTime);
+  // lastTimestamp = TimeMath.coerceTimestampRecord(lastTimestamp);
+
+  t.deepEqual(
+    createDistrubtionWakeupTime,
+    ELEVEN_THOUSAND + TWENTY_THREE_HUNDRED + firstEpochLength,
+  );
+
+  schedule = tail(distributionSchedule);
+
+  await E(timer).advanceBy(180_000n);
+
+  t.deepEqual(
+    await E(publicFacet).getStatus(),
+    AIRDROP_STATES.OPEN,
+    `Contract state machine should update from ${AIRDROP_STATES.PREPARED} to ${AIRDROP_STATES.OPEN} when startTime is reached.`,
+  );
+
+  t.log('inside test utilities');
+
+  const intervals = timeIntervals;
+
+  t.deepEqual(
+    head(timeIntervals),
+    2_300n,
+    'head function given an array should return the first item in the array.',
+  );
+  const testInterval = async array => {
+    const t0 = await E(timer).getCurrentTimestamp();
+    await E(timer).advanceBy(head(intervals));
+    const t1 = await E(timer).getCurrentTimestamp();
+    array = tail(array);
+    await E(timer).advanceBy(head(intervals));
+    const t2 = await E(timer).getCurrentTimestamp();
+    array = tail(array);
+    await E(timer).advanceBy(head(intervals));
+    const t3 = await E(timer).getCurrentTimestamp();
+    return [t0, t1, t2, t3];
+  };
+  const timestamps = await testInterval(timeIntervals);
 });
+
+test.todo('test payouts against timer-based distribution schedule');
+test.todo('conduct exhaustive state transition tests');
