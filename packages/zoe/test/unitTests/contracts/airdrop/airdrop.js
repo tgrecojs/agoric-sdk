@@ -3,6 +3,7 @@ import { makeDurableZone } from '@agoric/zone/durable.js';
 import { E } from '@endo/eventual-send';
 import { Far } from '@endo/marshal';
 import { AmountMath } from '@agoric/ertp';
+import { atomicTransfer } from '../../../../src/contractSupport';
 
 const head = ([x] = []) => x;
 const tail = ([_, ...xs]) => xs;
@@ -15,10 +16,14 @@ const compose =
 const getProp = prop => obj => obj[prop];
 const getWindowLength = compose(getProp('windowLength'), head);
 
+const getEpochEndTime = async (timer, epochLength) => {
+  const ts = await E(timer).getCurrentTimestamp();
+};
+
 /**
  * @typedef {object} EpochDetails
  * @property {bigint} windowLength Length of epoch in seconds. This value is used by the contract's timerService to schedule a wake up that will fire once all of the seconds in an epoch have elapsed
- * @property {bigint} tokenQuantity The total number of tokens recieved by each user who claims during a particular epoch.
+ * @property {bigint} earlyClaimBonus The total number of tokens recieved by each user who claims during a particular epoch.
  * @property {bigint} index The index of a particular epoch.
  * @property {number} inDays Length of epoch formatted in total number of days
  */
@@ -45,6 +50,8 @@ const makeCancelTokenMaker = name => {
   return () => Far(`cancelToken-${name}-${(tokenCount += 1)}`, {});
 };
 
+const createPurse = issuer => issuer.makeEmptyPurse();
+
 const makeAmount = brand => x => AmountMath.make(brand, x);
 
 /**
@@ -57,7 +64,9 @@ export const start = async (zcf, privateArgs, baggage) => {
   const {
     AirdropUtils,
     startTime,
+    basePayoutQuantity,
     brands: { Token: tokenBrand },
+    issuers: { Token: tokenIssuer },
   } = zcf.getTerms();
 
   const createAmount = x => AmountMath.make(tokenBrand, x);
@@ -112,7 +121,9 @@ export const start = async (zcf, privateArgs, baggage) => {
       currentCancelToken: cancelTokenMaker(),
       currentEpoch: 0,
       distributionSchedule: schedule,
-      tokenQuantity: schedule[0].tokenQuantity,
+      epochEndTime: 0,
+      basePayout: basePayoutQuantity,
+      earlyClaimBonus: schedule[0].tokenQuantity,
       internalPurse: tokenPurse,
       claimedAccounts: store,
       dsm: Far('state machine', {
@@ -127,9 +138,9 @@ export const start = async (zcf, privateArgs, baggage) => {
     {
       helper: {
         makeAmountForClaimer() {
-          const { currentEpoch, distributionSchedule } = this.state;
+          const { earlyClaimBonus, basePayout } = this.state;
 
-          return createAmount(distributionSchedule[currentEpoch].tokenQuantity);
+          return createAmount(earlyClaimBonus + basePayout);
         },
         async cancelTimer() {
           await E(timer).cancel(this.state.currentCancelToken);
@@ -139,13 +150,13 @@ export const start = async (zcf, privateArgs, baggage) => {
         },
         updateEpochDetails() {
           console.log('current epoch --- BEFORE', this.state.currentEpoch);
-          console.log('tokenQuantity --- BEFORE', this.state.tokenQuantity);
+          console.log('earlyClaimBonus --- BEFORE', this.state.earlyClaimBonus);
 
           this.state.currentEpoch += 1;
-          this.state.tokenQuantity =
+          this.state.earlyClaimBonus =
             this.facets.helper.getDistributionEpochDetails().tokenQuantity;
           console.log('current epoch --- AFTER', this.state.currentEpoch);
-          console.log('tokenQuantity --- AFTER', this.state.tokenQuantity);
+          console.log('earlyClaimBonus --- AFTER', this.state.earlyClaimBonus);
           void this.facets.helper.updateDistributionMultiplier();
         },
         async updateDistributionMultiplier() {
@@ -170,6 +181,7 @@ export const start = async (zcf, privateArgs, baggage) => {
               console.log('wakeup has been hit!', { ts, epochDetails });
             }),
           );
+          return 'wake up successfully set.';
         },
       },
       creator: {
@@ -230,23 +242,28 @@ export const start = async (zcf, privateArgs, baggage) => {
           return count;
         },
         claim() {
-          const {
-            internalPurse,
-            claimedAccounts,
-            distributionSchedule: { schedule, currentEpoch },
-          } = this.state;
           assert(
-            stateMachine.getStatus() === states.open,
+            this.facets.claimer.getStatus() === states.OPEN,
             'Claim attempt failed.',
           );
-          /** @type {OfferHandler} */
-          const claimHandler = async (seat, offerArgs) => {
-            // TODO
-            const airdropPayment = this.facets.creator.createPayment();
+          const airdropPayment = this.facets.creator.createPayment();
 
-            return airdropPayment;
+          /** @type {OfferHandler} */
+          const claimHandler = payment => async (seat, offerArgs) => {
+            // const payoutPurse = createPurse(tokenIssuer);
+
+            // payoutPurse.deposit(payment);
+
+            seat.exit();
+            return harden({
+              message: 'Here is your payout purse - enjoy!',
+              airdrop: payment,
+            });
           };
-          return zcf.makeInvitation(claimHandler, 'airdrop claim handler');
+          return zcf.makeInvitation(
+            claimHandler(airdropPayment),
+            'airdrop claim handler',
+          );
         },
       },
     },

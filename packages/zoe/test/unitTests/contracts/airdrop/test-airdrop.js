@@ -86,6 +86,7 @@ const createMerkleHash =
       },
     };
   };
+const ONE_THOUSAND = 1_000n;
 
 const makeTimer = (logFn, startTime) =>
   buildManualTimer(logFn, startTime, { eventLoopIteration });
@@ -123,6 +124,7 @@ test.beforeEach('setup', async t => {
     installation,
     { Token: memeIssuer },
     harden({
+      basePayoutQuantity: ONE_THOUSAND,
       startTime: 10_000n,
       AirdropUtils: Far('AirdropUtils', {
         makeAmount() {
@@ -169,6 +171,9 @@ test.beforeEach('setup', async t => {
   //   timer: manualTimer,
   // });
   t.context = {
+    memeIssuer,
+    memeKit,
+    memes,
     timeIntervals: defaultIntervals,
     instance,
     creatorFacet: instance.creatorFacet,
@@ -183,8 +188,43 @@ test.beforeEach('setup', async t => {
   };
 });
 
+const simulateClaim = async (t, invitation, expectedPayout) => {
+  const { zoe, memeIssuer: tokenIssuer, memes } = t.context;
+  const claimInviation = await E(zoe).offer(invitation);
+
+  /**
+   * Description placeholder
+   * @date 4/3/2024 - 8:24:47 PM
+   *
+   * @typedef {object} AirdropResult
+   * @property {string} message
+   * @property {Payment} airdrop
+   */
+
+  /** @type {AirdropResult} */
+  const claimResult = await E(claimInviation).getOfferResult();
+
+  t.log('------------ testing claim capabilities -------');
+  t.log('-----------------------------------------');
+  t.log('AirdropResult', claimResult);
+  t.log('-----------------------------------------');
+  t.log('expectedPayout value', expectedPayout);
+  t.log('-----------------------------------------');
+
+  t.deepEqual(claimResult.message, 'Here is your payout purse - enjoy!');
+
+  t.deepEqual(await E(tokenIssuer).isLive(claimResult.airdrop), true);
+  t.deepEqual(
+    await E(tokenIssuer).getAmountOf(claimResult.airdrop),
+    memes(expectedPayout),
+  );
+};
+
 test('zoe - ownable-Airdrop contract', async t => {
   const {
+    memes,
+    memeIssuer,
+    memeKit,
     schedule: distributionSchedule,
     timeIntervals,
     creatorFacet,
@@ -216,6 +256,8 @@ test('zoe - ownable-Airdrop contract', async t => {
 
   const getProp = prop => obj => obj[prop];
   const getWindowLength = compose(getProp('windowLength'), head);
+  const getTokenQuantity = compose(getProp('tokenQuantity'), head);
+
   t.deepEqual(
     head(timeIntervals),
     2_300n,
@@ -247,6 +289,7 @@ test('zoe - ownable-Airdrop contract', async t => {
 
   const add = x => y => x + y;
 
+  let bonusTokenQuantity = getTokenQuantity(schedule);
   const firstEpochLength = getWindowLength(schedule);
 
   const createDistrubtionWakeupTime =
@@ -257,15 +300,25 @@ test('zoe - ownable-Airdrop contract', async t => {
     createDistrubtionWakeupTime,
     ELEVEN_THOUSAND + TWENTY_THREE_HUNDRED + firstEpochLength,
   );
-
+  await simulateClaim(
+    t,
+    await E(publicFacet).claim(),
+    add(bonusTokenQuantity)(ONE_THOUSAND),
+  );
   schedule = tail(distributionSchedule);
-
+  bonusTokenQuantity = getTokenQuantity(schedule);
   await E(timer).advanceBy(180_000n);
 
   t.deepEqual(
     await E(publicFacet).getStatus(),
     AIRDROP_STATES.OPEN,
     `Contract state machine should update from ${AIRDROP_STATES.PREPARED} to ${AIRDROP_STATES.OPEN} when startTime is reached.`,
+  );
+
+  await simulateClaim(
+    t,
+    await E(publicFacet).claim(),
+    add(bonusTokenQuantity)(ONE_THOUSAND),
   );
 
   t.log('inside test utilities');
