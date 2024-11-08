@@ -1,18 +1,29 @@
+/* eslint-env node */
+
 import test from 'ava';
+
+import { retryUntilCondition } from '@agoric/client-utils';
 import {
   agoric,
+  CHAINID,
   evalBundles,
   GOV1ADDR,
   GOV2ADDR,
-  CHAINID,
-  waitForBlock,
+  makeAgd,
 } from '@agoric/synthetic-chain';
-import { $ } from 'execa';
-import {
-  agd,
-  getBalances,
-  replaceTemplateValuesInFile,
-} from './test-lib/utils.js';
+import { execFileSync } from 'node:child_process';
+import { agdWalletUtils } from './test-lib/index.js';
+import { getBalances, replaceTemplateValuesInFile } from './test-lib/utils.js';
+
+const showAndExec = (file, args, opts) => {
+  console.log('$', file, ...args);
+  return execFileSync(file, args, opts);
+};
+
+// @ts-expect-error string is not assignable to Buffer
+const agd = makeAgd({ execFileSync: showAndExec }).withOpts({
+  keyringBackend: 'test',
+});
 
 test.serial(`send invitation via namesByAddress`, async t => {
   const SUBMISSION_DIR = 'invitation-test-submission';
@@ -42,20 +53,23 @@ test.serial(`send invitation via namesByAddress`, async t => {
 });
 
 test.serial('exitOffer tool reclaims stuck payment', async t => {
+  const istBalanceBefore = await getBalances([GOV1ADDR], 'uist');
+
   const offerId = 'bad-invitation-15'; // offer submitted on proposal upgrade-15 with an incorrect method name
-  const from = 'gov1';
+  await agdWalletUtils.broadcastBridgeAction(GOV1ADDR, {
+    method: 'tryExitOffer',
+    offerId,
+  });
 
-  const before = await getBalances([GOV1ADDR], 'uist');
-  t.log('uist balance before:', before);
-
-  await $`node ./exitOffer.js --id ${offerId} --from ${from} `;
-  await waitForBlock(2);
-
-  const after = await getBalances([GOV1ADDR], 'uist');
-  t.log('uist balance after:', after);
+  const istBalanceAfter = await retryUntilCondition(
+    async () => getBalances([GOV1ADDR], 'uist'),
+    istBalance => istBalance > istBalanceBefore,
+    'tryExitOffer failed to reclaim stuck payment ',
+    { log: t.log, setTimeout, retryIntervalMs: 5000, maxRetries: 15 },
+  );
 
   t.true(
-    after > before,
+    istBalanceAfter > istBalanceBefore,
     'The IST balance should increase after reclaiming the stuck payment',
   );
 });
@@ -97,7 +111,6 @@ test.serial(`ante handler sends fee only to vbank/reserve`, async t => {
     { chainId: CHAINID, from: GOV1ADDR, yes: true },
   );
 
-  await waitForBlock();
   t.like(result, { code: 0 });
 
   const [feeCollectorEndBalances, vbankReserveEndBalances] = await getBalances([
