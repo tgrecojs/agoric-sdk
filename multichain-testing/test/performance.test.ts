@@ -28,6 +28,7 @@ test.before(async t => {
 
   t.context = {
     ...setup,
+    provisionSmartWallet: setup.provisionSmartWallet,
     brands,
     makeFeeAmount,
   };
@@ -79,7 +80,7 @@ const makeDoOfferHandler = async (
     offerArgs,
     proposal: {
       give: {
-        Fee: feeAmount,
+        Fee: feeAmount(),
       },
     },
   });
@@ -89,21 +90,24 @@ const makeDoOfferHandler = async (
 };
 
 const provisionWallets = (accounts, { provisionSmartWallet }) =>
-  accounts.map(({ address }) =>
-    provisionSmartWallet(address, {
+  accounts.map(async ({ address }) => {
+    const wallet = await provisionSmartWallet(address, {
       BLD: 1000n,
       IST: 500n,
-    }),
-  );
-const claimAirdropMacro = async (t, claimRange, wallets, delay) => {
+    });
+    return wallet;
+  });
+const claimAirdropMacro = accounts => async (t, wallets, delay) => {
   const { useChain, makeFeeAmount } = t.context;
   const durations: number[] = [];
 
+  console.log('{accounts, wallets} ::::', { accounts, wallets });
+  console.log('----------------------------------');
   // Make multiple API calls with the specified delay
-  for (let i = 0; i < wallets.length - 1; i++) {
+  for (let i = 0; i < accounts.length - 1; i++) {
     const currentAccount = {
       wallet: wallets[i],
-      account: claimRange[0] + i,
+      account: accounts[0],
     };
 
     console.log('Curren Acccount', currentAccount);
@@ -136,15 +140,17 @@ const claimAirdropMacro = async (t, claimRange, wallets, delay) => {
 test.serial(
   'makeClaimTokensInvitation offrs ### start: accounts[3] || end: accounts[4] ### offer interval: 3000ms',
   async t => {
-    const claimRange = [32, 34];
+    const claimRange = [200, 202];
     const testAccts = accounts
       .slice(claimRange[0], claimRange[1])
       .filter(x => !x.address === false);
 
     console.log({ testAccts });
-    const wallets = await Promise.all(provisionWallets(testAccts, t.context));
 
-    const durations = await claimAirdropMacro(t, claimRange, wallets, 3000);
+    const makeClaimAirdropMacro = claimAirdropMacro(testAccts);
+
+    const walletsP = await Promise.all(provisionWallets(testAccts, t.context));
+    const durations = await makeClaimAirdropMacro(t, await walletsP, 3000);
     t.log('Durations for all calls', durations);
     console.group('################ START DURATIONS logger ##############');
     console.log('----------------------------------------');
@@ -156,51 +162,46 @@ test.serial(
     t.deepEqual(durations.length === 10, true);
   },
 );
-const newLocal = provisionSmartWallet =>
-  AIRDROP_DATA.accounts.slice(5, 15).map(async accountData => {
-    const wallet = await provisionSmartWallet(accountData.address);
-    return wallet;
-  });
 
-test.skip('makeClaimTokensInvitation offers ### start: accounts[5] || end: accounts[15] ### offer interval: 3000ms', async t => {
-  const claimRange = [5, 15];
+// test.skip('makeClaimTokensInvitation offers ### start: accounts[5] || end: accounts[15] ### offer interval: 3000ms', async t => {
+//   const claimRange = [5, 15];
 
-  const durations = await claimAirdropMacro(t, claimRange, 3000);
-  t.log('Durations for all calls', durations);
-  console.group('################ START DURATIONS logger ##############');
-  console.log('----------------------------------------');
-  console.log('durations ::::', durations);
-  console.log('----------------------------------------');
-  console.log('claimRange ::::', claimRange);
-  console.log('--------------- END DURATIONS logger -------------------');
-  console.groupEnd();
-  t.deepEqual(durations.length === 10, true);
-});
+//   const durations = await claimAirdropMacro(t, claimRange, 3000);
+//   t.log('Durations for all calls', durations);
+//   console.group('################ START DURATIONS logger ##############');
+//   console.log('----------------------------------------');
+//   console.log('durations ::::', durations);
+//   console.log('----------------------------------------');
+//   console.log('claimRange ::::', claimRange);
+//   console.log('--------------- END DURATIONS logger -------------------');
+//   console.groupEnd();
+//   t.deepEqual(durations.length === 10, true);
+// });
 
-test.skip('makeClaimTokensInvitation offers ### start: accounts[25] || end: accounts[29] ### offer interval: 3500ms', async t => {
-  const claimRange = [25, 29];
-  const durations = await claimAirdropMacro(t, claimRange, 3500);
-  t.log('Durations for all calls', durations);
-  console.group('################ START DURATIONS logger ##############');
-  console.log('----------------------------------------');
-  console.log('durations ::::', durations);
-  console.log('----------------------------------------');
-  console.log('claimRange ::::', claimRange);
-  console.log('--------------- END DURATIONS logger -------------------');
-  console.groupEnd();
-  t.deepEqual(durations.length === 4, true);
-});
+// test.skip('makeClaimTokensInvitation offers ### start: accounts[25] || end: accounts[29] ### offer interval: 3500ms', async t => {
+//   const claimRange = [25, 29];
+//   const durations = await claimAirdropMacro(t, claimRange, 3500);
+//   t.log('Durations for all calls', durations);
+//   console.group('################ START DURATIONS logger ##############');
+//   console.log('----------------------------------------');
+//   console.log('durations ::::', durations);
+//   console.log('----------------------------------------');
+//   console.log('claimRange ::::', claimRange);
+//   console.log('--------------- END DURATIONS logger -------------------');
+//   console.groupEnd();
+//   t.deepEqual(durations.length === 4, true);
+// });
 
-test.skip('makeClaimTokensInvitation offers ### start: accounts[40] || end: accounts[90] ### offer interval: 6000ms', async t => {
-  const claimRange = [40, 90];
-  const durations = await claimAirdropMacro(t, claimRange, 6000);
-  t.log('Durations for all calls', durations);
-  console.group('################ START DURATIONS logger ##############');
-  console.log('----------------------------------------');
-  console.log('durations ::::', durations);
-  console.log('----------------------------------------');
-  console.log('claimRange ::::', claimRange);
-  console.log('--------------- END DURATIONS logger -------------------');
-  console.groupEnd();
-  t.deepEqual(durations.length === 50, true);
-});
+// test.skip('makeClaimTokensInvitation offers ### start: accounts[40] || end: accounts[90] ### offer interval: 6000ms', async t => {
+//   const claimRange = [40, 90];
+//   const durations = await claimAirdropMacro(t, claimRange, 6000);
+//   t.log('Durations for all calls', durations);
+//   console.group('################ START DURATIONS logger ##############');
+//   console.log('----------------------------------------');
+//   console.log('durations ::::', durations);
+//   console.log('----------------------------------------');
+//   console.log('claimRange ::::', claimRange);
+//   console.log('--------------- END DURATIONS logger -------------------');
+//   console.groupEnd();
+//   t.deepEqual(durations.length === 50, true);
+// });
