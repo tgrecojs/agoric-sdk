@@ -72,15 +72,47 @@ PROVISION_POOL_ADDR=agoric1megzytg65cyrgzs6fvzxgrcqvwwl7ugpt62346
 add-address:
 	kubectl exec -i agoriclocal-genesis-0 -c validator -- agd keys add user1
 
+
 ADDRESS_FILE=./addresses.json
 # add multiple addresses from JSON file
+# add multiple addresses from JSON file with timestamp and save output
+KEYS_OUTPUT_FILE=generated_keys.json
+
+# add multiple addresses from JSON file with timestamp and save output
 add-addresses:
-	@for addr in $$(jq -r '.addresses[]' $(ADDRESS_FILE)); do \
-		echo "Adding address: $$addr"; \
-		kubectl exec -i agoriclocal-genesis-0 -c validator -- agd keys add $$addr; \
+	@counter=1; \
+	timestamp=$$(date +%s); \
+	echo '{"keys": [' > $(KEYS_OUTPUT_FILE); \
+	first=true; \
+	for addr in $$(jq -r '.addresses[]' $(ADDRESS_FILE)); do \
+		echo "Adding address: wallet-$$timestamp-$$counter"; \
+		if [ "$$first" = "true" ]; then \
+			first=false; \
+		else \
+			echo ',' >> $(KEYS_OUTPUT_FILE); \
+		fi; \
+		kubectl exec -i agoriclocal-genesis-0 -c validator -- agd keys add wallet-$$timestamp-$$counter \
+			| tee /dev/tty \
+			| jq '.' >> $(KEYS_OUTPUT_FILE); \
+		counter=$$((counter + 1)); \
+		sleep 1; \
+	done; \
+	echo ']}' >> $(KEYS_OUTPUT_FILE); \
+	echo "Key generation output saved to $(KEYS_OUTPUT_FILE)"
+
+# Format the output file to make it more readable
+format-output:
+	@jq '.' $(KEYS_OUTPUT_FILE) > $(KEYS_OUTPUT_FILE).tmp && mv $(KEYS_OUTPUT_FILE).tmp $(KEYS_OUTPUT_FILE)
+# Alternative with formatted timestamp
+add-addresses-formatted:
+	@counter=1; \
+	timestamp=$$(date +%Y%m%d_%H%M%S); \
+	for addr in $$(jq -r '.addresses[]' $(ADDRESS_FILE)); do \
+		echo "Adding address: wallet-$$timestamp-$$counter"; \
+		kubectl exec -i agoriclocal-genesis-0 -c validator -- agd keys add wallet-$$timestamp-$$counter | echo >(jq '.' >> $(KEYS_OUTPUT_FILE)); \
+		counter=$$((counter + 1)); \
 		sleep 1; \
 	done
-
 
 fund-provision-pool:
 	kubectl exec -i agoriclocal-genesis-0 -c validator -- agd tx bank send faucet $(PROVISION_POOL_ADDR) 1000000000uist -y -b block
