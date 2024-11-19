@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { M } from '@endo/patterns';
+import { M } from '@agoric/store';
 import { makeDurableZone } from '@agoric/zone/durable.js';
 import { E } from '@endo/far';
 import { AmountMath, AmountShape, AssetKind, MintShape } from '@agoric/ertp';
@@ -21,7 +21,7 @@ import { makeStateMachine } from './helpers/stateMachine.js';
 import { createClaimSuccessMsg } from './helpers/messages.js';
 import { objectToMap } from './helpers/objectTools.js';
 import { getMerkleRootFromMerkleProof } from './merkle-tree/index.js';
-import './types.js';
+import '@agoric/zoe/exported.js';
 
 const TT = makeTracer('ContractStartFn');
 
@@ -37,27 +37,37 @@ const AIRDROP_TIERS_STATIC = [9000n, 6500n, 3500n, 1500n, 750n];
 const cancelTokenMaker = makeCancelTokenMaker('airdrop-campaign');
 
 const AIRDROP_STATES = {
-  INITIALIZED: 'initialized',
-  PREPARED: 'prepared',
-  OPEN: 'claim-window-open',
-  EXPIRED: 'claim-window-expired',
   CLOSED: 'claiming-closed',
+  EXPIRED: 'claim-window-expired',
+  INITIALIZED: 'initialized',
+  OPEN: 'claim-window-open',
+  PAUSED: 'paused',
+  PREPARED: 'prepared',
   RESTARTING: 'restarting',
 };
-export const { OPEN, EXPIRED, PREPARED, INITIALIZED, RESTARTING } =
-  AIRDROP_STATES;
+export const {
+  CLOSED,
+  EXPIRED,
+  INITIALIZED,
+  OPEN,
+  PAUSED,
+  PREPARED,
+  RESTARTING,
+} = AIRDROP_STATES;
+harden(PAUSED);
+
+harden(CLOSED);
 harden(OPEN);
 harden(EXPIRED);
 harden(PREPARED);
 harden(INITIALIZED);
 harden(RESTARTING);
 
-/** @import {CopySet} from '@endo/patterns'; */
 /** @import {AssetKind, Brand, Issuer, NatValue, Purse} from '@agoric/ertp/src/types.js'; */
 /** @import {CancelToken, TimerService, TimestampRecord} from '@agoric/time/src/types.js'; */
 /** @import {Baggage} from '@agoric/vat-data'; */
 /** @import {Zone} from '@agoric/base-zone'; */
-/** @import {ContractMeta} from './@types/zoe-contract-facet.js'; */
+/** @import {ContractMeta} from './@types/zoe-contract-facet.d'; */
 /** @import {Remotable} from '@endo/marshal' */
 
 export const privateArgsShape = harden({
@@ -174,8 +184,9 @@ export const start = async (zcf, privateArgs, baggage) => {
     [
       [INITIALIZED, [PREPARED]],
       [PREPARED, [OPEN]],
-      [OPEN, [EXPIRED, RESTARTING]],
+      [OPEN, [EXPIRED, RESTARTING, PAUSED]],
       [RESTARTING, [OPEN]],
+      [PAUSED, [OPEN]],
       [EXPIRED, []],
     ],
     airdropStatusTracker,
@@ -205,7 +216,10 @@ export const start = async (zcf, privateArgs, baggage) => {
   });
 
   const divideAmount = divideAmountByTwo(tokenBrand);
-
+  const handlePauseOffers = () => {
+    stateMachine.transitionTo(PAUSED);
+    void zcf.setOfferFilter([messagesObject.makeClaimInvitationDescription()]);
+  };
   await objectToMap(
     {
       merkleRoot,
@@ -401,12 +415,18 @@ export const start = async (zcf, privateArgs, baggage) => {
 
         makePauseContractInvitation(adminDepositFacet) {
           const depositInvitation = async depositFacet => {
-            const pauseInvitation = zcf.makeInvitation(
-              _seat =>
-                zcf.setOfferFilter([
-                  messagesObject.makeClaimInvitationDescription(),
-                ]),
-              'pause makeClaimTokensInvitation',
+            const pauseInvitation = await zcf.makeInvitation(
+              // Is this UserSeat argument necessary????
+              /** @type {UserSeat} */
+              seat => {
+                assert(
+                  stateMachine.canTransitionTo(PAUSED),
+                  `Illegal state transition. Can not transition from state: ${stateMachine.getStatus()} to state ${PAUSED}`,
+                );
+                seat.exit('Exiting pause invitation');
+                return handlePauseOffers();
+              },
+              'pause contract',
             );
             E(depositFacet).receive(pauseInvitation);
           };
@@ -440,4 +460,5 @@ export const start = async (zcf, privateArgs, baggage) => {
     publicFacet,
   });
 };
+
 harden(start);

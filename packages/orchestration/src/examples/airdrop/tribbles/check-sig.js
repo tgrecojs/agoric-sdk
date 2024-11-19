@@ -8,12 +8,8 @@ import {
 } from '@cosmjs/amino';
 import { sha256 } from '../vendor/@noble/hashes/esm/sha256.js';
 import { ripemd160 } from '../vendor/@noble/hashes/esm/ripemd160.js';
-import { Either } from './helpers/adts.js';
-
-const compose =
-  (...fns) =>
-  initialValue =>
-    fns.reduceRight((acc, val) => val(acc), initialValue);
+import { Either } from './src/helpers/adts.js';
+import { compose } from './src/helpers/objectTools.js';
 
 const { Left, Right } = Either;
 
