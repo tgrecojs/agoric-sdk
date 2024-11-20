@@ -1,6 +1,12 @@
 import { unsafeMakeBundleCache } from '@agoric/swingset-vat/tools/bundleTool.js';
 import { makeE2ETools } from './e2e-tools.js';
 
+const XNET_CONSTANTS = {
+  RPC: "https://xnet.rpc.agoric.net:443",
+
+  LCD: "https://xnet.api.agoric.net:443"
+
+}
 export const makeAgdTools = async (
   log: typeof console.log,
   {
@@ -14,6 +20,8 @@ export const makeAgdTools = async (
     execFile,
     fetch,
     setTimeout,
+    rpcAddress: XNET_CONSTANTS.RPC,
+    apiAddress: XNET_CONSTANTS.LCD
   });
   return tools;
 };
