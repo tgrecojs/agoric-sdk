@@ -15,7 +15,7 @@ import { makeRetryUntilCondition } from '../tools/sleep.js';
 import { makeDeployBuilder } from '../tools/deploy.js';
 import { makeHermes } from '../tools/hermes-tools.js';
 import { makeNobleTools } from '../tools/noble-tools.js';
-
+import { createId } from '@paralleldrive/cuid2';
 export const FAUCET_POUR = 10_000n * 1_000_000n;
 
 const setupRegistry = makeSetupRegistry(makeGetFile({ dirname, join }));
@@ -36,6 +36,15 @@ export const chainConfig: Record<string, { expectedAddressPrefix: string }> = {
 const makeKeyring = async (
   e2eTools: Pick<E2ETools, 'addKey' | 'deleteKey'>,
 ) => {
+  const setupSpecificKeys = (mnemonics = ['']) =>
+    mnemonics.reduceRight(async (acc, val, index) => {
+      const name = `ACCOUNT-${createId()}`;
+      const res = await e2eTools.addKey(name, val);
+
+      const { address } = JSON.parse(res);
+      acc[name] = address;
+      return acc;
+    }, []);
   let _keys = ['user1'];
   const setupTestKeys = async (keys = ['user1']) => {
     _keys = keys;
@@ -55,7 +64,7 @@ const makeKeyring = async (
       ),
     ).catch();
 
-  return { setupTestKeys, deleteTestKeys };
+  return { setupSpecificKeys, setupTestKeys, deleteTestKeys };
 };
 
 export const commonSetup = async (t: ExecutionContext) => {
