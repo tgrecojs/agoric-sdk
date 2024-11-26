@@ -148,7 +148,9 @@ const prepareAccountsForTests = (accounts = merkleTreeObj.accounts.slice(0, 10),
 test.before(async t => {
   const setup = await commonSetup(t);
 
-  await setup.setupSpecificKeys(mnemonics.slice(200, 350))
+  await setup.startContract(contractName, contractBuilder)
+  await setup.setupSpecificKeys(mnemonics.slice(0, 50))
+
   console.log('successfully started contract::', contractName)
   // example usage. comment out after first run
   const chainData = await Promise.all([
@@ -170,10 +172,6 @@ test.before(async t => {
   }
 });
 
-
-test.serial('sample test', async t => {
-  t.deepEqual(t.context.brands, {})
-})
 const runManyOffers = async (t, delay = 10000, accounts) => {
   const durations = [];
 
@@ -220,11 +218,11 @@ const runManyOffers = async (t, delay = 10000, accounts) => {
 
 
 
-test.skip(
+test.serial(
   'makeClaimTokensInvitation offrs ### start: accounts[15] || end: accounts[35] ### offer interval: 10s',
   async t => {
     const { provisionSmartWallet, makeFeeAmount } = t.context;
-    const [startIndex, endIndex] = [15, 35];
+    const [startIndex, endIndex] = [30, 45];
     const testAccts = merkleTreeObj.accounts
       .slice(startIndex, endIndex);
 
