@@ -23,6 +23,7 @@ import { makePerfCommand } from './commands/perf.js';
 import { makeInterCommand } from './commands/inter.js';
 import { makeAuctionCommand } from './commands/auction.js';
 import { makeTestCommand } from './commands/test-upgrade.js';
+import { addAirdropCommands as makeAirdropCommand } from './commands/airdrop.js';
 
 const logger = anylogger('agops');
 const progname = path.basename(process.argv[1]);
@@ -73,6 +74,7 @@ program.addCommand(makeReserveCommand(logger, procIO));
 program.addCommand(makeAuctionCommand(logger, { ...procIO, fetch }));
 program.addCommand(makeInterCommand(procIO, { fetch }));
 program.addCommand(makeTestCommand(procIO, { fetch }));
+program.addCommand(makeAirdropCommand(program, { ...procIO, fetch }));
 
 void E.when(program.parseAsync(process.argv), undefined, err => {
   if (err instanceof CommanderError) {

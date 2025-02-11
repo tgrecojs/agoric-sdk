@@ -1,0 +1,21 @@
+OFFER {
+  id: 'openVault-1738864011026',
+  invitationSpec: {
+    source: 'agoricContract',
+    instancePath: [ 'VaultFactory' ],
+    callPipe: [ [Array], [Array] ]
+  },
+  proposal: { give: { Collateral: [Object] }, want: { Minted: [Object] } }
+} [
+  [ 'id', 'openVault-1738864011026' ],
+  [
+    'invitationSpec',
+    {
+      source: 'agoricContract',
+      instancePath: [Array],
+      callPipe: [Array]
+    }
+  ],
+  [ 'proposal', { give: [Object], want: [Object] } ]
+]
+{"body":"#{\"method\":\"executeOffer\",\"offer\":{\"id\":\"openVault-1738864011026\",\"invitationSpec\":{\"callPipe\":[[\"getCollateralManager\",[\"$0.Alleged: BoardRemoteATOM brand\"]],[\"makeVaultInvitation\"]],\"instancePath\":[\"VaultFactory\"],\"source\":\"agoricContract\"},\"proposal\":{\"give\":{\"Collateral\":{\"brand\":\"$0\",\"value\":\"+9000000\"}},\"want\":{\"Minted\":{\"brand\":\"$1.Alleged: BoardRemoteIST brand\",\"value\":\"+5000000\"}}}}}","slots":["board00848","board0257"]}

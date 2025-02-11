@@ -28,7 +28,6 @@ const defaultHome = homedir();
 
 export const initProgram = (
   configHelpers = configLib,
-  transferHelpers = transferLib,
   readFile = readAsync,
   writeFile = writeAsync,
   mkdir = mkdirSync,
@@ -42,13 +41,13 @@ export const initProgram = (
   const program = new Command();
 
   program
-    .name('fast-usdc')
-    .description('CLI to interact with Fast USDC liquidity pool')
+    .name('airdrop')
+    .description('CLI to interact with the Tribbles Airdrop contract')
     .version(packageJson.version)
     .option(
       '--home <path>',
       `Home directory to use for config`,
-      `${defaultHome}/.fast-usdc/`,
+      `${defaultHome}/.agoric/`,
     );
 
   const makeConfigFile = () => {
@@ -73,34 +72,13 @@ export const initProgram = (
   `,
   );
   addConfigCommands(program, configHelpers, makeConfigFile);
-  addOperatorCommands(program, {
+  addAirdropCommands(program, {
     fetch,
     stdout,
     stderr,
     env,
     now,
   });
-  addLPCommands(program, { fetch, stdout, stderr, env, now });
-  addAirdropCommands(program, { fetch, stdout, stderr, env, now });
-
-  program
-    .command('transfer')
-    .description('Transfer USDC from Ethereum/L2 to Cosmos via Fast USDC')
-    .argument('amount', 'Amount to transfer denominated in uusdc')
-    .argument('dest', 'Destination address in Cosmos')
-    .action(
-      async (
-        /** @type {string} */ amount,
-        /** @type {string} */ destination,
-      ) => {
-        const start = now();
-        await transferHelpers.transfer(makeConfigFile(), amount, destination);
-        const duration = now() - start;
-        stdout.write(
-          `Transfer finished in ${(duration / 1000).toFixed(1)} seconds`,
-        );
-      },
-    );
 
   return program;
 };

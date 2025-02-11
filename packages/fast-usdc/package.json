@@ -10,7 +10,8 @@
   ],
   "main": "src/main.js",
   "bin": {
-    "fast-usdc": "./src/cli/bin.js"
+    "fast-usdc": "./src/cli/bin.js",
+    "airdrop": "./src/cli/airdrop/bin.js"
   },
   "scripts": {
     "build": "exit 0",

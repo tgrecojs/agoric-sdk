@@ -2,6 +2,45 @@
 import { assertAllDefined } from '@agoric/internal';
 
 /**
+ * @param {Pick<
+ *   import('@agoric/vats/tools/board-utils.js').AgoricNamesRemotes,
+ *   'brand'
+ * >} agoricNames
+ * @param {object} opts
+ * @param {string} opts.id
+ * @param {bigint} opts.tier
+ * @param {Array} opts.proof
+ * @param {string} opts.pubkey
+ * @returns {import('@agoric/smart-wallet/src/offers.js').OfferSpec}
+ */
+
+export const makeClaimAirdropOffer = (
+  { brand },
+  { proof, tier, pubkey, id },
+) => {
+  return {
+    id,
+    invitationSpec: {
+      source: 'agoricContract',
+      instancePath: ['tribblesXnetDeployment'],
+      callPipe: [['makeClaimTokensInvitation']],
+    },
+    proposal: {
+      give: {
+        Fee: {
+          brand: brand.IST,
+          value: 5n,
+        },
+      },
+    },
+    offerArgs: {
+      proof,
+      tier,
+      pubkey,
+    },
+  };
+};
+/**
  * @import {USDCProposalShapes} from './pool-share-math.js';
  */
 
@@ -88,9 +127,13 @@ const makeWithdrawOffer = (
  * @satisfies {Record<
  *   string,
  *   Record<string, import('@agoric/smart-wallet/src/types.js').OfferMaker>
- * >}
+ * >}import { Brand } from '@agoric/ertp';
+
  */
 export const Offers = {
+  airdrop: {
+    Claim: makeClaimAirdropOffer,
+  },
   fastUsdc: {
     Deposit: makeDepositOffer,
     Withdraw: makeWithdrawOffer,

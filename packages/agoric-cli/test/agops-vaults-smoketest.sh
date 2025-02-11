@@ -18,26 +18,28 @@ fi
 set -x
 
 # open a vault
-OFFER=$(mktemp -t agops.XXX)
+OFFER='./offer-1.json'
 bin/agops vaults open --wantMinted 5.00 --giveCollateral 9.0 >| "$OFFER"
-agoric wallet print --file "$OFFER"
-agoric wallet send --offer "$OFFER" --from gov1 --keyring-backend="test"
 
-# list my vaults
-bin/agops vaults list --from gov1 --keyring-backend="test"
+echo "displaying offer"
+# echo "printing offer"
+# agoric wallet send --offer "$OFFER" --from airdrop-claimant-427 --keyring-backend test
 
-# in another terminal watch:
-agoric follow :published.vaultFactory.managers.manager0.vaults.vault0
+# # list my vaults
+# bin/agops vaults list --from airdrop-claimant-427 --keyring-backend test
 
-# adjust
-OFFER=$(mktemp -t agops.XXX)
-bin/agops vaults adjust --vaultId vault0 --giveCollateral 1.0 --from gov1 --keyring-backend="test" >| "$OFFER"
-agoric wallet print --file "$OFFER"
-agoric wallet send --from gov1 --keyring-backend="test" --offer "$OFFER"
+# # in another terminal watch:
+# agoric follow :published.vaultFactory.managers.manager0.vaults.vault0
 
-# close a vault
-OFFER=$(mktemp -t agops.XXX)
-# 5.05 for 5.00 debt plus 1% fee
-bin/agops vaults close --vaultId vault0 --giveMinted 5.05 --from gov1 --keyring-backend="test" >| "$OFFER"
-agoric wallet print --file "$OFFER"
-agoric wallet send --from gov1 --keyring-backend="test" --offer "$OFFER"
+# # adjust
+# OFFER=$(mktemp -t agops.XXX)
+# bin/agops vaults adjust --vaultId vault0 --giveCollateral 1.0 --from airdrop-claimant-427 --keyring-backend test >| "$OFFER"
+# agoric wallet print --file "$OFFER"
+# agoric wallet send --from airdrop-claimant-427 --keyring-backend test --offer "$OFFER"
+
+# # close a vault
+# OFFER=$(mktemp -t agops.XXX)
+# # 5.05 for 5.00 debt plus 1% fee
+# bin/agops vaults close --vaultId vault0 --giveMinted 5.05 --from airdrop-claimant-427 --keyring-backend test >| "$OFFER"
+# agoric wallet print --file "$OFFER"
+# agoric wallet send --from airdrop-claimant-427 --keyring-backend test --offer "$OFFER"

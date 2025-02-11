@@ -14,6 +14,7 @@ import test from 'ava';
 import { Command } from 'commander';
 import { flags } from '../../tools/cli-tools.js';
 import {
+  boardSlottingMarshaller,
   fetchEnvNetworkConfig,
   makeSmartWalletKit,
 } from '@agoric/client-utils';
@@ -120,11 +121,11 @@ const handleMakeSmartWalletKit =
   networkConfig =>
     makeSmartWalletKit({ delay, fetch }, networkConfig);
 
-const makeClaimAirdropOffer = (
+rconst makeClaimAirdropOffer = (
   { feeBrand, instanceName },
-  { proof, tier, pubkey },
+  { proof, tier, pubkey, id },
 ) => ({
-  id: `offer-${pubkey.slice(0, 10)}`,
+  id,
   invitationSpec: {
     source: 'agoricContract',
     instancePath: [instanceName],
@@ -167,48 +168,62 @@ const collectPowers = config =>
     () => handleFetchNetworkConfig({ env: config.env, fetch: config.fetch }),
   );
 
-const addAirdropCommands = (program, { fetch, stderr, stdout }) => ({
-  operator: program.command('claimer').description('Claim airdrop commands'),
-  invoke() {
-    this.operator
-      .command('send')
-      .description(
-        'constructs an OfferSpec in accordance with makeClaimTokensInvitation from ertp-airdrop.',
-      )
-      .option('--proof <string>', 'Proof', String)
-      .option('--pubkey <string>', 'Public key', String)
-      .option('--tier <number>', 'Tier', Number)
-      .action(async opts => {
-        const { proof, tier, pubkey } = opts;
-        const powers = await collectPowers({
-          delay: 500,
-          fetch,
-          env: { AGORIC_NET: 'xnet' },
-        })();
+const addAirdropCommands = (program, { fetch, stderr, stdout, env, now }, { swk }) => {
 
-        const [instance, brand] = await getInstanceAndBrand({
-          brandName: 'IST',
+  const operator = program
+    .command('airdrop')
+    .description('send offers to the airdrop contract');
+  operator
+    .command('claim')
+    .description(
+      'constructs an OfferSpec in accordance with makeClaimTokensInvitation from ertp-airdrop.',
+    )
+    .option('--proof <string>', 'Proof', String)
+    .option('--pubkey <string>', 'Public key', String)
+    .option('--tier <number>', 'Tier', Number)
+    .option('--offerId <string>', 'Offer id', String, `claim-${now()}`)
+    .action(async opts => {
+      const { proof, tier, pubkey, offerId = `claim-${now()}` } = opts;
+      const powers = await collectPowers({
+        delay: 500,
+        fetch,
+        env: { AGORIC_NET: 'xnet' },
+      })();
+
+      const [instance, brand] = await getInstanceAndBrand({
+        brandName: 'IST',
+        instanceName: 'tribblesXnetDeployment',
+      })(powers);
+      console.log('------------------------');
+      console.log({ instance, brand });
+      const {
+        agoricNames: { vbankAsset },
+      } = powers;
+
+      console.log('------------------------');
+      console.log('------------------------');
+      console.log('vbankAsset.IST::', vbankAsset.uist);
+
+      /** @type {import('@agoric/smart-wallet/src/invitations.js').InvitationSpec} */
+      const offer = makeClaimAirdropOffer(
+        {
+          feeBrand: vbankAsset.uist.brand,
           instanceName: 'tribblesXnetDeployment',
-        })(powers);
-        console.log('------------------------');
-        console.log({ instance, brand });
+        },
+        { proof, tier, pubkey, id: offerId },
+      );
 
-        /** @type {import('@agoric/smart-wallet/src/invitations.js').InvitationSpec} */
-        const offer = makeClaimAirdropOffer(
-          { feeBrand: brand, instanceName: 'tribblesXnetDeployment' },
-          { proof, tier, pubkey },
-        );
+      const serialized = powers.marshaller.toCapData(offer);
+      console.log('------------------------');
+      console.log('serialized::', stdout);
 
-        console.log({ offer });
-        outputActionAndHint(
-          { method: 'executeOffer', offer },
-          { stderr, stdout },
-          powers.marshaller,
-        );
-      });
-    return this.operator;
-  },
-});
+      outputActionAndHint(
+        { method: 'executeOffer', offer },
+        { stderr, stdout },
+      );
+    });
+  return operator;
+};
 
 export const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -230,14 +245,14 @@ test('tribbles airdrop program', async t => {
   const out = [];
   const err = [];
 
-  addAirdropCommands(program, {
-    fetch: fetch,
+  addAirdropCommands(addAirdropCommands, {
+    fetch: globalThis.fetch,
     stdout: mockStream(out),
     stderr: mockStream(err),
-    env: {},
+    env: process.env,
     now: () => 1234,
-  }).invoke();
-  await program.parseAsync(argv);
+  });
+  const res = await program.parseAsync(argv);
 
   const action = marshalData.fromCapData(JSON.parse(out.join('')));
 

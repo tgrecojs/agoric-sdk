@@ -1,0 +1,229 @@
+[{
+    "name": "wallet-1731277116-997",
+    "type": "local",
+    "address": "agoric1fgtaqv0ll9l9zuc940jnsy4p7g96s5snwyf4ct",
+    "pubkey": {
+      "type": "/cosmos.crypto.secp256k1.PubKey",
+      "key": "AlfjnSJ6JxdMWXDxi2IU7ERBQAaxsx6/R4iw7OmtVuu3"
+    },
+    "mnemonic": "memory blanket dish near aspect nice old become they member alone dose either chest absurd swim foster wool bundle inject skull tray carpet meat",
+    "proof": [
+      {
+        "hash": "6bc73d67a69bac195b499d13a41609b427407cb09b2d7aae10acef9018db4fb8",
+        "direction": "left"
+      },
+      {
+        "hash": "c7b2626a376ec3bcee73a5e6a824f7e11ca9978e8ecdaa8189e830da78a8e31f",
+        "direction": "right"
+      },
+      {
+        "hash": "70581e563dcb0067586a01506192b511d0256d2166577f10f9006bb41546c980",
+        "direction": "right"
+      },
+      {
+        "hash": "e2be50172e9a7ad10b6d11f72351745743f1e65620b3a5949a1baec21d3ef5e0",
+        "direction": "left"
+      },
+      {
+        "hash": "73ee1a1b75edabf358b416f64285eb11bb8fe9b76edfeebc2b059e7605811d84",
+        "direction": "right"
+      },
+      {
+        "hash": "6d11aeff1a97d39be7bbf897614f391a643190b0e064817442432188d3500b3a",
+        "direction": "right"
+      },
+      {
+        "hash": "92e8cdc5e006aa27e8728305d2e92b428bcc3177c63a91bc16d6cb2ebc19a8d3",
+        "direction": "left"
+      },
+      {
+        "hash": "8124a76966357e9685aac87babf06dce75adb48f3c6bb5b94ad859da9032d80a",
+        "direction": "left"
+      },
+      {
+        "hash": "8954391d96e02ef78ece2b25340113205b4a50324cd1ee83a15efe294e9996f7",
+        "direction": "left"
+      },
+      {
+        "hash": "1f96ef25353a8fb09c03b369687769edb9638183a0b2a269da87f5690c1df4c6",
+        "direction": "left"
+      },
+      {
+        "hash": "93f2dc30af40d20fc451c83fedec0c9b458e3e64bc9b1153a4158499cf320d51",
+        "direction": "left"
+      }
+    ],
+    "tier": 1
+  },
+  {
+    "name": "wallet-1731277116-998",
+    "type": "local",
+    "address": "agoric1v62u2dxkp87x0tp5n9t39unte9sf885elemlgx",
+    "pubkey": {
+      "type": "/cosmos.crypto.secp256k1.PubKey",
+      "key": "Al4KLy857jmo99Eis1gYGxbBwCGarNpDOGG+SSJO2qQA"
+    },
+    "mnemonic": "lawsuit other candy puzzle token seed execute kingdom upon opera shield ring stable base leave melody window protect mistake garment warm margin vehicle online",
+    "proof": [
+      {
+        "hash": "c7b2626a376ec3bcee73a5e6a824f7e11ca9978e8ecdaa8189e830da78a8e31f",
+        "direction": "right"
+      },
+      {
+        "hash": "6bc73d67a69bac195b499d13a41609b427407cb09b2d7aae10acef9018db4fb8",
+        "direction": "left"
+      },
+      {
+        "hash": "70581e563dcb0067586a01506192b511d0256d2166577f10f9006bb41546c980",
+        "direction": "right"
+      },
+      {
+        "hash": "e2be50172e9a7ad10b6d11f72351745743f1e65620b3a5949a1baec21d3ef5e0",
+        "direction": "left"
+      },
+      {
+        "hash": "73ee1a1b75edabf358b416f64285eb11bb8fe9b76edfeebc2b059e7605811d84",
+        "direction": "right"
+      },
+      {
+        "hash": "6d11aeff1a97d39be7bbf897614f391a643190b0e064817442432188d3500b3a",
+        "direction": "right"
+      },
+      {
+        "hash": "92e8cdc5e006aa27e8728305d2e92b428bcc3177c63a91bc16d6cb2ebc19a8d3",
+        "direction": "left"
+      },
+      {
+        "hash": "8124a76966357e9685aac87babf06dce75adb48f3c6bb5b94ad859da9032d80a",
+        "direction": "left"
+      },
+      {
+        "hash": "8954391d96e02ef78ece2b25340113205b4a50324cd1ee83a15efe294e9996f7",
+        "direction": "left"
+      },
+      {
+        "hash": "1f96ef25353a8fb09c03b369687769edb9638183a0b2a269da87f5690c1df4c6",
+        "direction": "left"
+      },
+      {
+        "hash": "93f2dc30af40d20fc451c83fedec0c9b458e3e64bc9b1153a4158499cf320d51",
+        "direction": "left"
+      }
+    ],
+    "tier": 3
+  },
+  {
+    "name": "wallet-1731277116-999",
+    "type": "local",
+    "address": "agoric18r8zndgw7q0jndkmt3x2r9lqveja80ul8596nn",
+    "pubkey": {
+      "type": "/cosmos.crypto.secp256k1.PubKey",
+      "key": "AmbFAfc/qPdaéhtboa6gcML9akJVXt+qV1K6/DCMaeK/q"
+    },
+    "mnemonic": "need code swamp carbon absurd silver hotel verify duty swap gather obscure priority smart pig favorite brother point pioneer calm radar choice person satisfy",
+    "proof": [
+      {
+        "hash": "759ce409e742a1078d6c615a0f4a1ee317d576771b4f384dce4eb314b425aba6",
+        "direction": "left"
+      },
+      {
+        "hash": "20a83c35fda36e3a34a95aed7a84249f27db684cbefe39d67de90385cdafca20",
+        "direction": "right"
+      },
+      {
+        "hash": "90d71c2b9fd3b8fe326124f96d11d2ba13a925e4a59eb9d3cdfa8afd4ddda7b7",
+        "direction": "left"
+      },
+      {
+        "hash": "e2be50172e9a7ad10b6d11f72351745743f1e65620b3a5949a1baec21d3ef5e0",
+        "direction": "left"
+      },
+      {
+        "hash": "73ee1a1b75edabf358b416f64285eb11bb8fe9b76edfeebc2b059e7605811d84",
+        "direction": "right"
+      },
+      {
+        "hash": "6d11aeff1a97d39be7bbf897614f391a643190b0e064817442432188d3500b3a",
+        "direction": "right"
+      },
+      {
+        "hash": "92e8cdc5e006aa27e8728305d2e92b428bcc3177c63a91bc16d6cb2ebc19a8d3",
+        "direction": "left"
+      },
+      {
+        "hash": "8124a76966357e9685aac87babf06dce75adb48f3c6bb5b94ad859da9032d80a",
+        "direction": "left"
+      },
+      {
+        "hash": "8954391d96e02ef78ece2b25340113205b4a50324cd1ee83a15efe294e9996f7",
+        "direction": "left"
+      },
+      {
+        "hash": "1f96ef25353a8fb09c03b369687769edb9638183a0b2a269da87f5690c1df4c6",
+        "direction": "left"
+      },
+      {
+        "hash": "93f2dc30af40d20fc451c83fedec0c9b458e3e64bc9b1153a4158499cf320d51",
+        "direction": "left"
+      }
+    ],
+    "tier": 4
+  },
+  {
+    "name": "wallet-1731277116-1000",
+    "type": "local",
+    "address": "agoric10lx445mp7e6n6zdj07uvyke2csphl6mk3cs9zz",
+    "pubkey": {
+      "type": "/cosmos.crypto.secp256k1.PubKey",
+      "key": "AwqvWSi7sbf/3b+VhjkxWWjRIso8MiFOyhIh3sSbAsjF"
+    },
+    "mnemonic": "provide horror danger mountain rate face swarm assume merge ugly frown grow capital sign magic lawsuit genre grocery diet current hotel insane stone cluster",
+    "proof": [
+      {
+        "hash": "20a83c35fda36e3a34a95aed7a84249f27db684cbefe39d67de90385cdafca20",
+        "direction": "right"
+      },
+      {
+        "hash": "759ce409e742a1078d6c615a0f4a1ee317d576771b4f384dce4eb314b425aba6",
+        "direction": "left"
+      },
+      {
+        "hash": "90d71c2b9fd3b8fe326124f96d11d2ba13a925e4a59eb9d3cdfa8afd4ddda7b7",
+        "direction": "left"
+      },
+      {
+        "hash": "e2be50172e9a7ad10b6d11f72351745743f1e65620b3a5949a1baec21d3ef5e0",
+        "direction": "left"
+      },
+      {
+        "hash": "73ee1a1b75edabf358b416f64285eb11bb8fe9b76edfeebc2b059e7605811d84",
+        "direction": "right"
+      },
+      {
+        "hash": "6d11aeff1a97d39be7bbf897614f391a643190b0e064817442432188d3500b3a",
+        "direction": "right"
+      },
+      {
+        "hash": "92e8cdc5e006aa27e8728305d2e92b428bcc3177c63a91bc16d6cb2ebc19a8d3",
+        "direction": "left"
+      },
+      {
+        "hash": "8124a76966357e9685aac87babf06dce75adb48f3c6bb5b94ad859da9032d80a",
+        "direction": "left"
+      },
+      {
+        "hash": "8954391d96e02ef78ece2b25340113205b4a50324cd1ee83a15efe294e9996f7",
+        "direction": "left"
+      },
+      {
+        "hash": "1f96ef25353a8fb09c03b369687769edb9638183a0b2a269da87f5690c1df4c6",
+        "direction": "left"
+      },
+      {
+        "hash": "93f2dc30af40d20fc451c83fedec0c9b458e3e64bc9b1153a4158499cf320d51",
+        "direction": "left"
+      }
+    ],
+    "tier": 4
+  }
+]
