@@ -1,0 +1,4 @@
+{
+  "body": "#{\"method\":\"executeOffer\",\"offer\":{\"id\":\"pause-offer-demo\",\"invitationSpec\":{\"description\":\"set offer filter\",\"instance\":\"$0.Alleged: BoardRemoteInstanceHandle\",\"source\":\"purse\"},\"offerArgs\":{\"filter\":[],\"nextState\":\"paused\"},\"proposal\":{}}}",
+  "slots": ["board025109"]
+}

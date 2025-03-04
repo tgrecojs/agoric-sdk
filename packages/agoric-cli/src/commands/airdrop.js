@@ -38,11 +38,64 @@ export const addAirdropCommands = (
       return smartWalletKit;
     }
     assert(fetch);
-    const networkConfig = await fetchEnvNetworkConfig({ env, fetch });
+    const networkConfig = await fetchEnvNetworkConfig({
+      env: { AGORIC_NET: 'xnet' },
+      fetch,
+    });
     return makeSmartWalletKit({ delay, fetch }, networkConfig);
   };
   /** @type {undefined | ReturnType<typeof loadSwk>} */
   let swkP;
+
+  airdropper
+    .command('pause')
+    .description('pauses the ability to claim tokens from the contract')
+    .option(
+      '--instance <string>',
+      'name of contract instance',
+      String,
+      'xnetTribblesAirdrop',
+    )
+    .option('--offerFilter string', 'name of the offer filter to set')
+    .option('--nextState <string>', 'Next contract state', 'paused')
+    .option('--offerId <string>', 'offer id', String, 'admin-pause-0')
+    .action(async opts => {
+      const { instance, offerId, offerFilter, nextState = 'paused' } = opts;
+
+      swkP ||= loadSwk();
+      const powers = await swkP;
+      // console.log('------------------------');
+      // console.log(
+      //   'powers, powers.agoricNames.instance::',
+      //   powers,
+      //   powers.agoricNames.instance,
+      // );
+      const airdropInstance = powers?.agoricNames.instance[instance];
+
+      assert(
+        airdropInstance,
+        `agoricNames.instance does not contain the value: ${instance}`,
+      );
+      /** @type {OfferSpec} */
+      const offer = {
+        id: offerId,
+        invitationSpec: {
+          source: 'purse',
+          instance: airdropInstance,
+          description: 'set offer filter',
+        },
+        proposal: {},
+        offerArgs: {
+          nextState,
+          filter: !offerFilter ? [] : [offerFilter],
+        },
+      };
+
+      outputActionAndHint(
+        { method: 'executeOffer', offer },
+        { stderr, stdout },
+      );
+    });
 
   airdropper
     .command('claim')
@@ -101,7 +154,7 @@ export const addAirdropCommands = (
         offerArgs: {
           proof,
           tier,
-          pubkey,
+          key: pubkey,
         },
       };
 

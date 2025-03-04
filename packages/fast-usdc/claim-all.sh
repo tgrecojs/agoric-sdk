@@ -33,7 +33,7 @@ jq -c '.[]' with-proofs.json | while read -r item; do
     
     # Execute the claim command and save output to temporary file, extracting only the JSON
     echo "Preparing claim for pubkey: $pubkey with tier: $tier"
-    yarn agops airdropper claim --proof "$proof" --pubkey "$pubkey" --tier "$tier" | grep '^{' > "$temp_file"
+    yarn agops airdropper claim --instancePath xnetTribblesAirdrop --proof "$proof" --pubkey "$pubkey" --tier "$tier" | grep '^{' > "$temp_file"
     
     # Start timing the wallet send operation
     start_time=$(date +%s.%N)
